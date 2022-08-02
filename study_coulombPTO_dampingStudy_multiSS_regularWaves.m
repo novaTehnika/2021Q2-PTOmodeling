@@ -24,6 +24,9 @@
 % 06/03/2022 - Created from study_coulombPTO_dampingStudy_multiSS.m
 % 07/08/2022 - added initial conditions as arguement to sim_coulombPTO()
 % and simulation start time as parameter.
+% 08/02/2022 - added ramp period to par struct and included tstart so that
+% ramp ends at t=0 and modified average power and WEC velocity calculations
+% to exclude ramp period.
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -49,7 +52,8 @@ addpath('Coulomb damping PTO')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%% Simulation length
-par.tstart = 0; %[s] start time of simulation
+par.tramp = 100; % [s] excitation force ramp period
+par.tstart = 0-par.tramp; %[s] start time of simulation
 par.tend = 3000; %[s] end time of simulation
 
 % Solver parameters
@@ -98,13 +102,13 @@ for iSS = 1:nSS
         toc
 
         % Calculate metrics
+        t_vec = find(out.t>=par.tstart);
         if max(out.theta) > pi ||  min(out.theta) < -pi
             PP(iSS,iVar1) = 0;
             theta_dot_ave(iSS,iVar1) = 0;
         else 
-            tVec = round(length(out.t)/3):length(out.t);
-            PP(iSS,iVar1) = mean(-out.T_pto(tVec).*out.theta_dot(tVec));
-            theta_dot_ave(iSS,iVar1) = mean(abs(out.theta_dot(tVec)));
+            PP(iSS,iVar1) = mean(-out.T_pto(t_vec).*out.theta_dot(t_vec));
+            theta_dot_ave(iSS,iVar1) = mean(abs(out.theta_dot(t_vec)));
         end
 
         if saveSimData
@@ -114,7 +118,19 @@ for iSS = 1:nSS
     end
 end
 
-% save('data_coulombPTO_dampingStudy_20220601.mat')
+
+%% %%%%%%%%%%%%   SAVE DATA   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% filename = ['data_coulombPTO_dampingStudy_regWave',date];
+% files = ls;
+% nfiles = size(files,1);
+% k = 1;
+% for j = 1:nfiles
+%     if strfind(files(j,:),filename)
+%         k = k+1;
+%     end
+% end
+% save([filename,'_',num2str(k)])
+
 % return
 %% %%%%%%%%%%%%   PLOTTING  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % tarHs = 5.25;

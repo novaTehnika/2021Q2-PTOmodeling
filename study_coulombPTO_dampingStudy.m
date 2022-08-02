@@ -24,6 +24,9 @@
 % 08/02/2021 - Created.
 % 07/08/2022 - added initial conditions as arguement to sim_coulombPTO()
 % and simulation start time as parameter.
+% 08/02/2022 - added ramp period to par struct and included tstart so that
+% ramp ends at t=0 and modified average power and WEC velocity calculations
+% to exclude ramp period.
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -49,7 +52,8 @@ addpath('Coulomb damping PTO')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Simulation timeframe
-par.tstart = 0; %[s] start time of simulation
+par.tramp = 100; % [s] excitation force ramp period
+par.tstart = 0-par.tramp; %[s] start time of simulation
 par.tend = 3000; %[s] end time of simulation
 
 % Solver parameters
@@ -92,8 +96,9 @@ parfor iVar = 1:nVar
     toc
     
     % Calculate metrics
-    PP(iVar) = mean(-out(iVar).T_pto.*out(iVar).theta_dot);
-    theta_dot_ave(iVar) = mean(abs(out(iVar).theta_dot));
+    t_vec = find(out.t>=par.tstart);
+    PP(iVar) = mean(-out.T_pto(t_vec).*out.theta_dot(t_vec));
+    theta_dot_ave(iVar) = mean(abs(out.theta_dot(t_vec)));
 
     if saveSimData
         simOut(iVar) = out;

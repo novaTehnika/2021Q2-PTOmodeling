@@ -25,6 +25,9 @@
 % studyPTO_coulombPTO_dampingStudy_singleSS.m.
 % 07/08/2022 - added initial conditions as arguement to sim_coulombPTO()
 % and simulation start time as parameter.
+% 08/02/2022 - added ramp period to par struct and included tstart so that
+% ramp ends at t=0 and modified average power and WEC velocity calculations
+% to exclude ramp period.
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -52,7 +55,8 @@ addpath('Solvers')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Simulation timeframe
-par.tstart = 0; %[s] start time of simulation
+par.tramp = 100; % [s] excitation force ramp period
+par.tstart = 0-par.tramp; %[s] start time of simulation
 par.tend = 3000; %[s] end time of simulation
 
 % Solver parameters
@@ -70,15 +74,15 @@ par.wave.rngSeedPhase = 3; % seed for the random number generator
 load('SSdata_HumboltBay_1D.mat')
 nSS = length(Tp);
 
-nVar1 = 31;
+nVar1 = 41;
 % Tcoulomb = 1e6*linspace(1,10,nVar1);% [Nm] PTO reaction torque
 Tcoulomb = 1e6*logspace(log10(0.1),log10(20),nVar1);% [Nm] PTO reaction torque
 
-saveSimData = 1; % save simulation data (1) or just output variables (0)
+saveSimData = 0; % save simulation data (1) or just output variables (0)
 
 %% %%%%%%%%%%%%   COLLECT DATA  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-for iSS = 7%:nSS
+for iSS = 1:nSS
     par.wave.Hs = Hs(iSS);
     par.wave.Tp = Tp(iSS);
     
@@ -102,12 +106,13 @@ for iSS = 7%:nSS
         toc
 
         % Calculate metrics
+        t_vec = find(out.t>=par.tstart);
         if max(out.theta) > pi ||  min(out.theta) < -pi
             PP(iSS,iVar1) = 0;
             theta_dot_ave(iSS,iVar1) = 0;
         else 
-            PP(iSS,iVar1) = mean(-out.T_pto.*out.theta_dot);
-            theta_dot_ave(iSS,iVar1) = mean(abs(out.theta_dot));
+            PP(iSS,iVar1) = mean(-out.T_pto(t_vec).*out.theta_dot(t_vec));
+            theta_dot_ave(iSS,iVar1) = mean(abs(out.theta_dot(t_vec)));
         end
 
         if saveSimData
@@ -117,7 +122,19 @@ for iSS = 7%:nSS
     end
 end
 
-save('data_coulombPTO_dampingStudy_20220714.mat')
+
+%% %%%%%%%%%%%%   SAVE DATA   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+filename = ['data_coulombPTO_dampingStudy_',date];
+files = ls;
+nfiles = size(files,1);
+k = 1;
+for j = 1:nfiles
+    if strfind(files(j,:),filename)
+        k = k+1;
+    end
+end
+save([filename,'_',num2str(k)])
+
 return
 
 %% %%%%%%%%%%%%   PLOTTING  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -128,7 +145,7 @@ return
 % Hs(iSS)
 % Te(iSS)
 %%
-iSS = 7
+iSS = 114
 figure
 xlabel('Torque (MNm)')
 title(['WEC Power Absorption, Coulomb damping',newline,...
@@ -170,7 +187,7 @@ for iSS = 1:114
 end
 yLim = ylim;
 
-plot(1e-6*Tcoulomb,6e-11*Tcoulomb.^2,'r','LineWidth',2)
+plot(1e-6*Tcoulomb,4e-11*Tcoulomb.^2,'r','LineWidth',2)
 
 plot([-99 -100],[-99 -100],'--','color',0.5*[1 1 1],'linewidth',1);
 plot([-99 -100],[-99 -100],'color',0*[1 1 1],'linewidth',1);
@@ -178,6 +195,6 @@ plot([-99 -100],[-99 -100],'color',0*[1 1 1],'linewidth',1);
 legend('quadratic function','sea state probability > 1%','sea state probability > 2%')
 
 ylim(yLim)
-xlim([0 10])
+xlim([0 20])
 xlabel('Torque (MNm)')
 ylabel('Power (kW)')

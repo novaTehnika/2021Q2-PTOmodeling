@@ -22,6 +22,8 @@
 %
 % UPDATES:
 % 06/23/2021 - Created.
+% 08/02/2022 - added ramp period to par struct and included tstart so that
+% ramp ends at t=0;
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -47,7 +49,8 @@ addpath('Coulomb damping PTO with compressible pump')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Simulation timeframe
-par.tstart = 0; %[s] start time of simulation
+par.tramp = 100; % [s] excitation force ramp period
+par.tstart = 0-par.tramp; %[s] start time of simulation
 par.tend = 3000; %[s] end time of simulation
 
 % Solver parameters
