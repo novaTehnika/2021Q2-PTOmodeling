@@ -57,15 +57,18 @@ function par = parameters_seriesPTO(par)
      % check valves
     par.A_check_h = 2.3e-3;           % [m^2]  Check valve area - high pressure (c3,c4)
     par.A_check_l = 2.8e-3;        % [m^2]  Check valve area - low pressure (c1,c2)
-    par.P_crack = 101.3e3;          % [Pa]  Cracking pressure of check valve 20.7kPa = 3psi; 68.9kPa = 10psi
+    par.p_crack = 101.3e3;          % [Pa]  Cracking pressure of check valve 20.7kPa = 3psi; 68.9kPa = 10psi
 
     % RO module parameters
     par.p_perm = par.p_o;
     par.p_osm = 2.7e6;
     par.Sro = 10000; % [m^3]
     par.Aperm = 2.57e-12; % [m^3/(N-s)] permeabiity coefficient (Yu and Jenne,2018)
-%     par.Aperm = 0.0116e-6*.75;
     par.Y = 0.4;
+
+    % ERU
+    par.eta_ERUv = 0.9;
+    par.eta_ERUm = 0.9;
     
     % power control unit
       % motor
@@ -74,25 +77,32 @@ function par = parameters_seriesPTO(par)
     par.w_pm_min = 1/60*2*pi; % [rad/s] minimum speed of motor
 
        % efficiency model coeffs. (McCandlish and Dory model)
-        % Axial piston motor (data from Danfoss APP 1.5)
-    par.APM.C_s1 = 2.09e-9;
-    par.APM.C_s2 = 2.57e-12;
-    par.APM.V_r = 1.103;
-    par.APM.C_v1 = 535760;
-    par.APM.C_v2 = 8205.8;
-    par.APM.C_f1 = 0.136;
-    par.APM.C_f2 = -5.9e-4;
-    
-        % Axial piston pump (data from Danfoss APP 1.5)
-    par.APP.C_s1 = 1.14e-9;
-    par.APP.C_s2 = 1.42e-12;
+%         % Axial piston motor (data from Danfoss APP 1.5)
+%     par.APM.C_s1 = 2.09e-9;
+%     par.APM.C_s2 = 2.57e-12;
+%     par.APM.V_r = 1.103;
+%     par.APM.C_v1 = 535760;
+%     par.APM.C_v2 = 8205.8;
+%     par.APM.C_f1 = 0.136;
+%     par.APM.C_f2 = -5.9e-4;
+%     
+%         % Axial piston pump (data from Danfoss APP 1.5)
+%     par.APP.C_s1 = 1.14e-9;
+%     par.APP.C_s2 = 1.42e-12;
+%     par.APP.V_r = 1.103;
+%     par.APP.C_v1 = -1798400;
+%     par.APP.C_v2 = 9672.7;
+%     par.APP.C_f1 = 0.1634;
+%     par.APP.C_f2 = -3.5e-4;
+
+        % Axial piston pump (data from Danfoss APP 43/1700)
+    par.APP.C_s = 3.0554e-10;
     par.APP.V_r = 1.103;
-    par.APP.C_v1 = -1798400;
-    par.APP.C_v2 = 9672.7;
-    par.APP.C_f1 = 0.1634;
-    par.APP.C_f2 = -3.5e-4;
+    par.APP.C_v = 7.1755e5;
+    par.APP.C_f = 0.0259;
     
       % generator
+    par.eta_g = 0.9;  % efficiency of electric generator
        % rotor inertia estimated by NEMA MG-1 (14.46)
     n_poles = 3; % [qty.] number of poles of induction motor
     genPowerRating = 100; % [hp] power rating of induction motor
@@ -153,16 +163,55 @@ function par = parameters_seriesPTO(par)
     par.control.Tgen_ctrl.kp = 1e3;
     par.control.Tgen_ctrl.ki = 2e5;
     
- % Charging system (Intake & Boost pump)
+    % Charging system (Intake & Boost pump)
     par.cn = 7;
     par.cq = -1e6;
     par.w_c = (3600)*2*pi/60; % [rpm -> rad/s]
+    par.eta_c = 0.7;  % pumping efficiency of pressure boost pump
+    par.eta_m = 0.9;  % efficiency of charge pump motor
+    par.p_tank = .65e6;
 
- % Charging system (Intake & Boost pump)
-    par.eta_boostPump = 0.7;  % pumping efficiency of pressure boost pump
-    par.A_check_boost = 30e-3;
-    par.omega_boost = 2600*2*pi/60; % [rpm -> rad/s] Boost pump shaft speed
-    par.P_tank = .65e6; 
+    % Pressure relief valves
+     % low-pressure inlet to pipeline/outlet of charge pump
+    maxPressure = 1e6; % [Pa]
+    margin = 5e4; % [Pa]
+    maxFlow = 100e-3; % [m^3/s]
+    par.linPRV.p_crack = maxPressure - margin;
+    par.linPRV.C = (maxPressure^(3/2) ...
+                 - (maxPressure-margin)*maxPressure^(1/2))/maxFlow;
+
+     % low-pressure inlet to WEC-driven pump
+    maxPressure = 1e6; % [Pa]
+    margin = 5e4; % [Pa]
+    maxFlow = 100e-3; % [m^3/s]
+    par.loutPRV.p_crack = maxPressure - margin;
+    par.loutPRV.C = (maxPressure^(3/2) ...
+                 - (maxPressure-margin)*maxPressure^(1/2))/maxFlow;
+
+     % high-pressure outlet of WEC-driven pump
+    maxPressure = 30e6; % [Pa]
+    margin = 5e4; % [Pa]
+    maxFlow = 100e-3; % [m^3/s]
+    par.hinPRV.p_crack = maxPressure - margin;
+    par.hinPRV.C = (maxPressure^(3/2) ...
+                 - (maxPressure-margin)*maxPressure^(1/2))/maxFlow;
+    
+     % high-pressure outlet of pipeline/inlet to house power pump/motor
+    maxPressure = 30e6; % [Pa]
+    margin = 5e4; % [Pa]
+    maxFlow = 100e-3; % [m^3/s]
+    par.houtPRV.p_crack = maxPressure - margin;
+    par.houtPRV.C = (maxPressure^(3/2) ...
+                 - (maxPressure-margin)*maxPressure^(1/2))/maxFlow;
+
+     % feed inlet to RO module
+    maxPressure = 8.3e6; % [Pa]
+    margin = 5e4; % [Pa]
+    maxFlow = 100e-3; % [m^3/s]
+    par.ROPRV.p_crack = maxPressure - margin;
+    par.ROPRV.C = (maxPressure^(3/2) ...
+                 - (maxPressure-margin)*maxPressure^(1/2))/maxFlow;
+
 %% 
 par.L_intake1 = 2; %320; %length for inlet to boost pump
 par.L_intake2 = 660; %340; %length from boost pump to plant
