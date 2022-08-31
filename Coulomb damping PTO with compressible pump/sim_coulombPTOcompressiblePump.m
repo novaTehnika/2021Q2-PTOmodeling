@@ -19,6 +19,7 @@ function out = sim_coulombPTOcompressiblePump(y0,par)
 % FILE DEPENDENCY:
 % sys_coulombPTOcompressiblePump.m
 % stateIndex_coulombPTOcompressiblePump.m
+% WEC model/flapModel.m
 % ode1.m
 %
 % UPDATES:
@@ -46,7 +47,7 @@ stateIndex_coulombPTOcompressiblePump
 %% %%%%%%%%%%%%   SOLUTION   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Solve for states of the dynamic system
  % Set-up solver
-    tspan = [par.tstart par.tend];   % time interval
+    tspan = [par.tstart-par.Tramp par.tend];   % time interval
 
  % Solver options
     options = odeset('RelTol',par.odeSolverRelTol,...

@@ -1,4 +1,4 @@
-function par = parameters_coulombPTOcompressiblePump(par)
+function par = parameters_coulombPTOcompressiblePump(par,filenameCoeff,filenameRadSS)
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % parameters_coulombPTOcompressiblePump.m function m-file
 % AUTHORS: 
@@ -10,9 +10,18 @@ function par = parameters_coulombPTOcompressiblePump(par)
 % 12/29/2021
 %
 % PURPOSE/DESCRIPTION:
-% 
+% This function loads default parameters into the "par" structure. This
+% includes calling a simular function to load parameters for the WEC model.
+% File names for the hydrodynamic data for the WEC are passed through that
+% function. Not all parameters can be modified after this function runs
+% without issue. Changing parameters in any design study script should be
+% check for affecting the other parameters.
 %
-% FILE DEPENDENCY: NA
+% This function is for a model of a WEC with simple Coulomb damping for a
+% PTO that includes the effects of compressibilty of the fluid.
+%
+% FILE DEPENDENCY:
+% parameters_WECmodel.m
 %
 % UPDATES:
 % 12/29/2021 - created.
@@ -36,7 +45,7 @@ function par = parameters_coulombPTOcompressiblePump(par)
     
      % fluid and entrianed gas properties
     par.rho = 1023; % [kg/m3] density of air
-    par.mu = 9.4e-4; % [Pa-s]  Kinematic (absolute) viscosity
+    par.mu = 9.4e-4; % [Pa-s]  Dynamic (absolute) viscosity
     par.beta = 2.2e9; % [Pa]  Bulk Modulus of air free fluid
     par.p_vap = 0.037e5; % [Pa] vapour pressure of seawater
     par.R = 0.0001; % [-] fraction  Baseline fraction of air by volume entrained in the hydraulic fluid at atm
@@ -44,7 +53,7 @@ function par = parameters_coulombPTOcompressiblePump(par)
     par.gamma = 1.4; % [-]ratio of specific heats for air
     
     % WEC parameters
-    par = parameters_WECmodel(par);
+    par = parameters_WECmodel(par,filenameCoeff,filenameRadSS);
     
     % PTO damping
     par.p_lout = 10e5; % [Pa] Pressure at WEC-driven pump inlet
@@ -70,10 +79,5 @@ function par = parameters_coulombPTOcompressiblePump(par)
       % pump chamber to pump outlet
     par.p_crackxP = 1e5; % [Pa] Cracking pressure
     par.dp_strokexP = 2e5; % [Pa] pressure difference between cracking and max stroke
-
-    %% %%%%%%%%%%%%   FUNCTIONS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%     function par = parameters_WECmodel(par)
-%         par = parameters_WECmodel(par);
-%     end
 
 end

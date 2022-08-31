@@ -14,7 +14,9 @@ function out = sim_coulombPTO(y0,par)
 % damping.
 %
 % FILE DEPENDENCY:
-% sys_coulombPTO
+% sys_coulombPTO.m
+% WEC model/flapModel.m
+% ode1.m
 %
 % UPDATES:
 % 06/29/2021 - Created.
@@ -44,7 +46,7 @@ function out = sim_coulombPTO(y0,par)
 %% %%%%%%%%%%%%   SOLUTION   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Solve for states of the dynamic system
  % Set-up solver
-    tspan = [par.tstart par.tend];   % time interval
+    tspan = [par.tstart-par.Tramp par.tend];   % time interval
 
  % Solver options
     options = odeset('RelTol',par.odeSolverRelTol,...

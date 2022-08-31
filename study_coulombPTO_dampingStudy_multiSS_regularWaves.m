@@ -48,13 +48,15 @@ clear
 % clc
 addpath('WEC model') 
 addpath(['WEC model' filesep 'WECdata']) 
-addpath('Coulomb damping PTO') 
+addpath('Coulomb damping PTO')
+addpath('Sea States')
+addpath('Solvers')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %%% Simulation length
-par.tramp = 100; % [s] excitation force ramp period
-par.tstart = 0-par.tramp; %[s] start time of simulation
-par.tend = 3000; %[s] end time of simulation
+par.Tramp = 250; % [s] excitation force ramp period
+par.tstart = 0; %[s] start time of simulation
+par.tend = 2000; %[s] end time of simulation
 
 % Solver parameters
 par.odeSolverRelTol = 1e-9; % Rel. error tolerance parameter for ODE solver
@@ -84,7 +86,8 @@ for iSS = 1:nSS
     par.wave.Tp = Tp(iSS);
     
     % load parameters
-    par = parameters_coulombPTO(par);
+    par = parameters_coulombPTO(par,...
+    'nemohResults_vantHoff2009_20180802.mat','vantHoffTFCoeff.mat');
     
     % Define initial conditions
     y0 = [  0, ...
@@ -143,7 +146,7 @@ end
 iSS = 10
 figure
 xlabel('Torque (MNm)')
-title(['WEC Power Absorption, Coulomb damping',newline,...
+title(['WEC Power Absorption, Coulomb Damping',newline,...
             'Sea State ',num2str(iSS)])
 yyaxis left
 hold on

@@ -1,18 +1,19 @@
-% run_coulombPTO.m script m-file
+% study_coulombPTO_dampingStudy_singleSS.m script m-file
 % AUTHORS:
 % Jeremy Simmons (email: simmo536@umn.edu)
 % University of Minnesota
 % Department of Mechanical Engineering
 %
 % CREATION DATE:
-% 06/23/2021
+% 08/23/2022
 %
 % PURPOSE/DESCRIPTION:
-% This script serves as a shell for running a single simulation
+% This script serves as a shell for performing parameter variation studies
 % using the model contained in sys_coulombPTO.m and run by solved by 
-% sim_coulombPTO.m.
-% The parameter initiallization fuction are called within this
-% script before the sim_coulombPTO.m script is called.
+% sim_coulombPTO.m. Specifically this script varies the Coulomb damping
+% torque for a given sea state to produce a mean power curve.
+% Parameter and function initiallization fuctions are called within this
+% script before the sim_coulombPTO.m script is called. 
 %
 % FILE DEPENDENCY:
 % sys_coulombPTO.m
@@ -20,9 +21,12 @@
 % parameters_coulombPTO.m
 %
 % UPDATES:
-% 06/23/2021 - Created.
+% 08/02/2021 - Created.
+% 07/08/2022 - added initial conditions as arguement to sim_coulombPTO()
+% and simulation start time as parameter.
 % 08/02/2022 - added ramp period to par struct and included tstart so that
-% ramp ends at t=0;
+% ramp ends at t=0 and modified average power and WEC velocity calculations
+% to exclude ramp period.
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -42,9 +46,9 @@
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 clear
 % clc
-addpath('WEC model') 
-addpath(['WEC model' filesep 'WECdata']) 
-addpath('Coulomb damping PTO') 
+addpath('WEC model')
+addpath(['WEC model' filesep 'WECdata'])
+addpath('Linear damping PTO') 
 addpath('Sea States')
 addpath('Solvers')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -55,18 +59,18 @@ par.tstart = 0; %[s] start time of simulation
 par.tend = 2000; %[s] end time of simulation
 
 % Solver parameters
-par.odeSolverRelTol = 1e-4; % Rel. error tolerance parameter for ODE solver
-par.odeSolverAbsTol = 1e-4; % Abs. error tolerance parameter for ODE solver
+par.odeSolverRelTol = 1e-9; % Rel. error tolerance parameter for ODE solver
+par.odeSolverAbsTol = 1e-9; % Abs. error tolerance parameter for ODE solver
 par.MaxStep = 1e-2;
 
 % Sea State and Wave construction parameters
-par.wave.Hs = 1.25;
-par.wave.Tp = 7.5;
+par.wave.Hs = 1.75;
+par.wave.Tp = 7;
 par.WEC.nw = 1000; % num. of frequency components for harmonic superposition 
 par.wave.rngSeedPhase = 3; % seed for the random number generator
 
 % load parameters
-par = parameters_coulombPTO(par,...
+par = parameters_linearPTO(par,...
     'nemohResults_vantHoff2009_20180802.mat','vantHoffTFCoeff.mat');
 
 % Define initial conditions
@@ -74,55 +78,51 @@ y0 = [  0, ...
         0, ...
         zeros(1,par.WEC.ny_rad)];
 
-%% Special modifications to base parameters
-par.Tcoulomb = 3e6; % [Nm] PTO reaction torque
+%% %%%%%%%%%%%%   Study Variables  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+nVar = 31;
+% Tcoulomb = 1e6*linspace(1,10,nVar1);% [Nm] PTO reaction torque
+Cpto = 1e6*logspace(log10(0.1),log10(100),nVar);% [Nm] PTO reaction torque
+
+saveSimData = 0; % save simulation data (1) or just output variables (0)
 
 %% %%%%%%%%%%%%   COLLECT DATA  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% run simulation
-tic
-out = sim_coulombPTO(y0,par);
-toc
+parfor iVar = 1:nVar
+    param = par; % store individual parameter strucs for parallel compute
 
+    % change design parameter
+    param.Cpto = Cpto(iVar); 
+    par.Cpto
+
+    % run simulation
+    tic
+    out = sim_linearPTO(y0,param);
+    toc
+    
+    % Calculate metrics
+    t_vec = find(out.t>=par.tstart);
+    PP(iVar) = mean(-out.T_pto(t_vec).*out.theta_dot(t_vec));
+    theta_dot_ave(iVar) = mean(abs(out.theta_dot(t_vec)));
+
+    if saveSimData
+        simOut(iVar) = out;
+    end
+
+end
 %% %%%%%%%%%%%%   PLOTTING  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-figure
-plot(out.t,out.waveElev)
-xlabel('time (s)')
-ylabel('elevation (m)')
-title('Wave Elevation')
 
-%%
 figure
-plot(out.t,out.theta)
-xlabel('time (s)')
-ylabel('position (rad)')
-% ylim([-pi/2 pi/2])
-% xlim([0 2])
-
-%%
-figure
-xlabel('time (s)')
-
+xlabel('Damping coeff. (MNms/rad)')
+title('WEC Power Absorption, Linear Damping')
 yyaxis left
 hold on
-plot(out.t,out.theta_dot)
-ylabel('angular velocity (rad/s)')
+plot(1e-6*Cpto,1e-3*PP)
+ylabel('Power (kW)')
 % ylim(10*[-pi/2 pi/2])
 
 yyaxis right
 hold on
-plot(out.t,1e-6*out.T_pto)
-ylabel('torque, PTO (MNm)')
-ylim(2*1e-6*[-par.Tcoulomb par.Tcoulomb])
+plot(1e-6*Cpto,theta_dot_ave)
+ylabel('Speed, mean (rad/s)')
+% ylim()
 % xlim([0 2])
-
-%%
-figure
-hold on
-plot(out.t,1e-6*out.T_wave)
-plot(out.t,1e-6*out.T_pto)
-plot(out.t,1e-6*out.T_rad)
-ylabel('torque (MNm)')
-
-mean(-out.T_pto(:).*out.theta_dot(:))
-

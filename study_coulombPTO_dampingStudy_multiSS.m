@@ -55,9 +55,9 @@ addpath('Solvers')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Simulation timeframe
-par.tramp = 100; % [s] excitation force ramp period
-par.tstart = 0-par.tramp; %[s] start time of simulation
-par.tend = 3000; %[s] end time of simulation
+par.Tramp = 250; % [s] excitation force ramp period
+par.tstart = 0; %[s] start time of simulation
+par.tend = 2000; %[s] end time of simulation
 
 % Solver parameters
 par.odeSolverRelTol = 1e-9; % Rel. error tolerance parameter for ODE solver
@@ -65,7 +65,7 @@ par.odeSolverAbsTol = 1e-9; % Abs. error tolerance parameter for ODE solver
 par.MaxStep = 1e-2;
 
 % Wave construction parameters
-par.WEC.nw = 100; % num. of frequency components for harmonic superposition 
+par.WEC.nw = 1000; % num. of frequency components for harmonic superposition 
 par.wave.rngSeedPhase = 3; % seed for the random number generator
 
 %% %%%%%%%%%%%%   Study Variables  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -74,20 +74,21 @@ par.wave.rngSeedPhase = 3; % seed for the random number generator
 load('SSdata_HumboltBay_1D.mat')
 nSS = length(Tp);
 
-nVar1 = 41;
+nVar1 = 61;
 % Tcoulomb = 1e6*linspace(1,10,nVar1);% [Nm] PTO reaction torque
-Tcoulomb = 1e6*logspace(log10(0.1),log10(20),nVar1);% [Nm] PTO reaction torque
+Tcoulomb = 1e6*logspace(log10(0.1),log10(10),nVar1);% [Nm] PTO reaction torque
 
 saveSimData = 0; % save simulation data (1) or just output variables (0)
 
 %% %%%%%%%%%%%%   COLLECT DATA  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-for iSS = 1:nSS
+for iSS = 1%1:nSS
     par.wave.Hs = Hs(iSS);
     par.wave.Tp = Tp(iSS);
     
     % load base parameters
-    par = parameters_coulombPTO(par);
+    par = parameters_coulombPTO(par,...
+    'nemohResults_vantHoff2009_20180802.mat','vantHoffTFCoeff.mat');
     
     % Define initial conditions
     y0 = [  0, ...
@@ -145,10 +146,10 @@ return
 % Hs(iSS)
 % Te(iSS)
 %%
-iSS = 114
+iSS = 7
 figure
 xlabel('Torque (MNm)')
-title(['WEC Power Absorption, Coulomb damping',newline,...
+title(['WEC Power Absorption, Coulomb Damping',newline,...
             'Sea State ',num2str(iSS)])
 yyaxis left
 hold on
@@ -166,7 +167,7 @@ ylabel('Speed, mean (rad/s)')
 %%
 figure
 hold on
-title(['WEC Power Absorption, Coulomb damping'])
+title(['WEC Power Absorption, Coulomb Damping'])
 % for iSS = 1:114
 %     if weight(iSS) >= 0.5 && weight(iSS) < 1
 %         p = plot(1e-6*Tcoulomb,1e-3*PP(iSS,:),'color',0.9*[1 1 1],'linewidth',1)

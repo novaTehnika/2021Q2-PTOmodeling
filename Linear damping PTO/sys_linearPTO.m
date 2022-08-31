@@ -1,28 +1,24 @@
-function [dydt, nonState] = sys(t,y,par)
+function [dydt, nonState] = sys_linearPTO(t,y,par)
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% sys_coulombPTO.m function m-file
+% sys_linearPTO.m function m-file
 % AUTHORS: 
 % Jeremy Simmons (email: simmo536@umn.edu)
 % University of Minnesota
 % Department of Mechanical Engineering
 %
 % CREATION DATE:
-% 6/23/2021
+% 8/23/2022
 %
 % PURPOSE/DESCRIPTION:
-% Calculate the state derivatives for a simple wave energy PTO with coulomb
-% damping. For use as an intermediate step in modeling PTO archetectures in
-% the 2021Q2 PTO modeling project. The model includes the hydrodynamic WEC
-% model found in the 2021Q2 Hydrodynamic modeling project (but really
-% developed in 2018) and assumes a constant PTO torque magnitide.
+% Calculate the state derivatives for a simple wave energy PTO with linear
+% damping.
 %
 % FILE DEPENDENCY: 
 % pipeline_VXXxXX.m
 % nonStateVarsPTOwPL_VXXxXX
 %
 % UPDATES:
-% 6/23/2021 - V01x00 - created from sysPTOwPL_V01x00.m to be
-%           used in simPTO_V02x00.m.
+% 8/23/2022 - created from sys_coulombPTO.m
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -58,7 +54,6 @@ dydt(iyrad) = dydt_WEC(3:end); % radiation damping states for WEC model
 %% %%%%%%%%%%%%   FUNCTIONS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     function nonState = nonStateVars(t,y,par)
-        nonState.T_pto = (abs(y(iytheta_dot)) > 5e-3)* ...
-                        -sign(y(iytheta_dot))*par.Tcoulomb;
+        nonState.T_pto = -par.Cpto*y(iytheta_dot);
     end
 end

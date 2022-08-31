@@ -47,14 +47,16 @@
 clear
 % clc
 addpath('WEC model') 
-addpath('WEC model\WECdata') 
-addpath('Coulomb damping PTO') 
+addpath(['WEC model' filesep 'WECdata'])
+addpath('Coulomb damping PTO')
+addpath('Sea States')
+addpath('Solvers')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Simulation timeframe
-par.tramp = 100; % [s] excitation force ramp period
-par.tstart = 0-par.tramp; %[s] start time of simulation
-par.tend = 3000; %[s] end time of simulation
+par.Tramp = 250; % [s] excitation force ramp period
+par.tstart = 0; %[s] start time of simulation
+par.tend = 2000; %[s] end time of simulation
 
 % Solver parameters
 par.odeSolverRelTol = 1e-9; % Rel. error tolerance parameter for ODE solver
@@ -64,11 +66,12 @@ par.MaxStep = 1e-2;
 % Sea State and Wave construction parameters
 par.wave.Hs = 2.75;
 par.wave.Tp = 12;
-par.WEC.nw = 100; % num. of frequency components for harmonic superposition 
+par.WEC.nw = 1000; % num. of frequency components for harmonic superposition 
 par.wave.rngSeedPhase = 3; % seed for the random number generator
 
 % load parameters
-par = parameters_coulombPTO(par);
+par = parameters_coulombPTO(par,...
+    'nemohResults_vantHoff2009_20180802.mat','vantHoffTFCoeff.mat');
 
 % Define initial conditions
 y0 = [  0, ...
@@ -108,8 +111,8 @@ end
 %% %%%%%%%%%%%%   PLOTTING  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 figure
-xlabel('Torque (MPa)')
-title('WEC Power Absorption, Coulomb damping')
+xlabel('Torque (MNm)')
+title('WEC Power Absorption, Coulomb Damping')
 yyaxis left
 hold on
 plot(1e-6*Tcoulomb,1e-3*PP)

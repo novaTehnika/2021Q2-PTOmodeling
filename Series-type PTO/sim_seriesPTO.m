@@ -26,6 +26,8 @@ function out = sim_seriesPTO(par)
 % FILE DEPENDENCY:
 % sys_seriesPTO.m
 % stateIndex_seriesPTO.m
+% WEC model/flapModel.m
+% ode1.m
 %
 % UPDATES:
 % 06/29/2021 - First version creation.
@@ -53,7 +55,7 @@ stateIndex_seriesPTO % load state indices
 %% %%%%%%%%%%%%   SOLUTION   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%% Solve for states of the dynamic system
  % Set-up solver
-    tspan = [par.tstart par.tend];   % time interval
+    tspan = [par.tstart-par.Tramp par.tend];   % time interval
         
  % Solver options
     options = odeset('RelTol',par.odeSolverRelTol,...
@@ -72,41 +74,39 @@ stateIndex_seriesPTO % load state indices
     out.par = par;
     
     % determine number of time steps
-    nt = length(t); % number of time steps
-    it_start = find(out.t == 0);
-    iVec = it_start:nt;
+    itVec = find(out.t >= par.tstart);
     
     % Extract system states from simulation results
-    out.t = t;
-    out.y = y;
+    out.t = t(itVec);
+    out.y = y(itVec,);
     
-    out.p_lin = y(iVec,iyp_lin);
-    out.p_lout = y(iVec,iyp_lout);
-    out.p_hin = y(iVec,iyp_hin); % [Pa] pressure at inlet of HP pipeline
-    out.p_hout = y(iVec,iyp_hout);
-    out.p_RO = y(iVec,iyp_RO); % [Pa] RO feed pressure
+    out.p_lin = y(itVec,iyp_lin);
+    out.p_lout = y(itVec,iyp_lout);
+    out.p_hin = y(itVec,iyp_hin); % [Pa] pressure at inlet of HP pipeline
+    out.p_hout = y(itVec,iyp_hout);
+    out.p_RO = y(itVec,iyp_RO); % [Pa] RO feed pressure
     
-    out.w_pm = y(iVec,iyw_pm); % [rad/s] angular velocity of the pump/motor
+    out.w_pm = y(itVec,iyw_pm); % [rad/s] angular velocity of the pump/motor
     
-    out.control.p_filt = y(iVec,iyp_filt);
-    out.control.errInt_p_filt = y(iVec,iy_errInt_p_filt);
-    out.control.errInt_w_pm = y(iVec,iy_errInt_w_pm);
+    out.control.p_filt = y(itVec,iyp_filt);
+    out.control.errInt_p_filt = y(itVec,iy_errInt_p_filt);
+    out.control.errInt_w_pm = y(itVec,iy_errInt_w_pm);
     
-    out.theta = y(iVec,iytheta); % [rad] position of the WEC
-    out.theta_dot = y(iVec,iytheta_dot); % [rad/s] angular velocity of the WEC
+    out.theta = y(itVec,iytheta); % [rad] position of the WEC
+    out.theta_dot = y(itVec,iytheta_dot); % [rad/s] angular velocity of the WEC
     
-    out.yLP = y(iVec,iyLPPL);
-    out.qLP = y(iVec,iyqLP);
-    out.pLP = y(iVec,iypLP);
+    out.yLP = y(itVec,iyLPPL);
+    out.qLP = y(itVec,iyqLP);
+    out.pLP = y(itVec,iypLP);
     
-    out.yLP = y(iVec,iyHPPL);
-    out.qHP = y(iVec,iyqHP);
-    out.pHP = y(iVec,iypHP);
+    out.yLP = y(itVec,iyHPPL);
+    out.qHP = y(itVec,iyqHP);
+    out.pHP = y(itVec,iypHP);
             
     % Post-process non-state variables and state derivatives
     syspost = @(t,y,par) sysPost(t,y,par);
 
-    parfor it = iVec 
+    parfor it = itVec 
         [dydt(it,:), nonState(it), control(it)] = syspost(t(it),y(it,:),par);
         
         % Move WEC torque results up a level in nonState stucture so that
@@ -117,46 +117,46 @@ stateIndex_seriesPTO % load state indices
     end
     
     % State derivatives
-    out.dydt = dydt(iVec);
+    out.dydt = dydt(itVec);
     
      % System input: wave elevation
-    out.waveElev = [nonState(iVec).waveElev]';
+    out.waveElev = [nonState(itVec).waveElev]';
     
      % forces on WEC
-    out.T_pto = [nonState(iVec).T_pto]';
-    out.T_hydroStatic = [temp(iVec).T_hydroStatic]';
-    out.T_wave = [temp(iVec).T_wave]';
-    out.T_rad = [temp(iVec).T_rad]';
+    out.T_pto = [nonState(itVec).T_pto]';
+    out.T_hydroStatic = [temp(itVec).T_hydroStatic]';
+    out.T_wave = [temp(itVec).T_wave]';
+    out.T_rad = [temp(itVec).T_rad]';
           
      % Control signals
-    out.control.w_pm_nom = [control(iVec).w_pm_nom]';
+    out.control.w_pm_nom = [control(itVec).w_pm_nom]';
    
      % torque on pump/motor and generator shafts
-    out.Tgen = [control(iVec).Tgen]';
-    out.Tpm = [nonState(iVec).Tpm]';
+    out.Tgen = [control(itVec).Tgen]';
+    out.Tpm = [nonState(itVec).Tpm]';
     
      % WEC-driven pump flow
-    out.q_wp = [nonState(iVec).q_w]';
+    out.q_wp = [nonState(itVec).q_w]';
     
      % pump/motor flow
-    out.q_pm = [nonState(iVec).q_pm]';
+    out.q_pm = [nonState(itVec).q_pm]';
     
      % RO performance
-    out.q_perm = [nonState(iVec).q_perm]';
+    out.q_perm = [nonState(itVec).q_perm]';
 
      % ERU flow rate
-    out.q_brine = [nonState(iVec).q_brine]';
-    out.q_ERUfeed = [nonState(iVec).q_ERUfeed]';
+    out.q_brine = [nonState(itVec).q_brine]';
+    out.q_ERUfeed = [nonState(itVec).q_ERUfeed]';
 
      % Charge Pump
-    out.q_c = [nonState(iVec).q_c]';
+    out.q_c = [nonState(itVec).q_c]';
 
      % Pressure relief valves
-    out.q_linPRV = [nonState(iVec).q_linPRV]';
-    out.q_loutPRV = [nonState(iVec).q_loutPRV]';
-    out.q_hinPRV = [nonState(iVec).q_hinPRV]';
-    out.q_houtPRV = [nonState(iVec).q_houtPRV]';
-    out.q_ROPRV = [nonState(iVec).q_ROPRV]';
+    out.q_linPRV = [nonState(itVec).q_linPRV]';
+    out.q_loutPRV = [nonState(itVec).q_loutPRV]';
+    out.q_hinPRV = [nonState(itVec).q_hinPRV]';
+    out.q_houtPRV = [nonState(itVec).q_houtPRV]';
+    out.q_ROPRV = [nonState(itVec).q_ROPRV]';
 
 %% Post-process analysis
 

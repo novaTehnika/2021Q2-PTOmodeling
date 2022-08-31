@@ -1,13 +1,13 @@
-function par = parameters_coulombPTOshuntValve(par,filenameCoeff,filenameRadSS)
+function par = parameters_linearPTO(par,filenameCoeff,filenameRadSS)
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% parameters_coulombPTOshuntValve.m function m-file
+% parameters_linearPTO.m function m-file
 % AUTHORS: 
 % Jeremy Simmons (email: simmo536@umn.edu)
 % University of Minnesota
 % Department of Mechanical Engineering
 %
 % CREATION DATE:
-% 12/29/2021
+% 8/23/2022
 %
 % PURPOSE/DESCRIPTION:
 % This function loads default parameters into the "par" structure. This
@@ -17,14 +17,14 @@ function par = parameters_coulombPTOshuntValve(par,filenameCoeff,filenameRadSS)
 % without issue. Changing parameters in any design study script should be
 % check for affecting the other parameters.
 %
-% This function is for a model of a WEC with simple Coulomb damping for a
-% PTO and PWM switching.
+% This function is for a model of a WEC with simple linear damping for a
+% PTO.
 %
-% FILE DEPENDENCY: 
+% FILE DEPENDENCY:
 % parameters_WECmodel.m
 %
 % UPDATES:
-% 12/29/2021 - created from parameters_coulombPTOcompressiblePump.m.
+% 8/29/2022 - created from parameters_coulombPTO.m.
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -52,45 +52,10 @@ function par = parameters_coulombPTOshuntValve(par,filenameCoeff,filenameRadSS)
     par.p_o = 101.3e3; % [Pa]  Atmospheric pressure (reference)
     par.gamma = 1.4; % [-]ratio of specific heats for air
     
-    % WEC parameters
+     % WEC parameters
     par = parameters_WECmodel(par,filenameCoeff,filenameRadSS);
     
-    % PTO damping
-    par.p_lout = 10e5; % [Pa] Pressure at WEC-driven pump inlet
-    par.p_hin = 6e6; % [Pa] Pressure at WEC-driven pump outlet
-
-    % WEC-driven pump
-    par.D_wp = 1000e-3; % [m^3/rad] kinematic displacement
-    par.eta_wp = 0.9; % [-] mechanical efficiency, pumping chamber pressure as input
-    par.thetaMax = pi/2; % [rad] Maximum angular travel
-    par.V_wpdead = 0;
-    
-    % Check valves
-     % Valve flow coefficient
-    par.kv_cvMin = 0; % [m^3/Pa^(1/2)] Minimum valve coefficient
-    par.kv_cvTx = 2e-3; % [m^3/Pa^(1/2)] Maximum valve coefficient, pump inlet to pump chamber
-    par.kv_cvxP = 2e-3; % [m^3/Pa^(1/2)] Maximum valve coefficient, pump chamber to pump outlet
-
-     % Stroke schedule
-      % pump inlet to pump chamber
-    par.p_crackTx = 1e5; % [Pa] Cracking pressure
-    par.dp_strokeTx = 2e5; % [Pa] pressure difference between cracking and max stroke
-
-      % pump chamber to pump outlet
-    par.p_crackxP = 1e5; % [Pa] Cracking pressure
-    par.dp_strokexP = 2e5; % [Pa] pressure difference between cracking and max stroke
-
-    % Shunt Valve
-     % Valve flow coefficient
-    par.kv_svMin = 0; % [m^3/Pa^(1/2)] Minimum valve coefficient
-    par.kv_sv = 10e-4; % [m^3/Pa^(1/2)] Maximum valve coefficient
-     % linearization about zero pressure differential
-    par.dp_linear = 5e4;
-    par.dp_linear_coeff = 1/sqrt(par.dp_linear);
-
-     % Stroke schedule
-    par.fsv = 0.05; % Transition ratio
-    par.control.T = 1; % [s] switching period
-    par.control.duty = 1; % [-] ratio of time controlled closed
+     % PTO damping
+    par.Cpto = 35e6; % [Nms/rad] PTO reaction torque
 
 end
