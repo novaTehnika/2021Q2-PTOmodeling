@@ -82,7 +82,7 @@ saveSimData = 0; % save simulation data (1) or just output variables (0)
 
 %% %%%%%%%%%%%%   COLLECT DATA  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-for iSS = 1%1:nSS
+for iSS = 1:nSS
     par.wave.Hs = Hs(iSS);
     par.wave.Tp = Tp(iSS);
     
