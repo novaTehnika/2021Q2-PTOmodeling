@@ -56,7 +56,7 @@ function par = parameters_seriesPTO(par,filenameCoeff,filenameRadSS)
 
     % WEC-pump
      % pumping chamber
-    par.D_WEC = 0.442;         % [m^3/rad] flap pump displacement
+    par.D_WEC = 0.3;         % [m^3/rad] flap pump displacement
     par.eta_v_WEC = 1;
     par.eta_m_WEC = 0.9;                % Flap pump mechanical efficiency
      % check valves
@@ -67,19 +67,19 @@ function par = parameters_seriesPTO(par,filenameCoeff,filenameRadSS)
     % RO module parameters
     par.p_perm = par.p_o;
     par.p_osm = 2.7e6;
-    par.Sro = 10000; % [m^3]
+    par.Sro = 5000; % [m^3]
     par.Aperm = 2.57e-12; % [m^3/(N-s)] permeabiity coefficient (Yu and Jenne,2018)
     par.Y = 0.4;
 
     % ERU
-    par.eta_ERUv = 0.9;
-    par.eta_ERUm = 0.9;
+    par.eta_ERUv = 0.95;
+    par.eta_ERUm = 0.95;
     
     % power control unit
-      % motor
-    par.D_pm = 444e-6; % [m^3/rev]  Motor displacement
-    par.w_pm_max = 1700/60*2*pi; % [rad/s] maximum speed of motor
-    par.w_pm_min = 1/60*2*pi; % [rad/s] minimum speed of motor
+      % pump/motor
+    par.D_pm = (6500)*1e-6/(2*pi); % [(cc/rev) -> m^3/rad]  Motor displacement
+    par.w_pm_max = (3600)/60*2*pi; % [(rpm) -> rad/s] maximum speed of motor
+    par.w_pm_min = (1)/60*2*pi; % [(rpm) -> rad/s] minimum speed of motor
 
        % efficiency model coeffs. (McCandlish and Dory model)
 %         % Axial piston motor (data from Danfoss APP 1.5)
@@ -116,19 +116,19 @@ function par = parameters_seriesPTO(par,filenameCoeff,filenameRadSS)
     
     % Accumulators
      % LPA at inlet to LP pipelinerge pressure
-    par.Vc_lout = 1000e-3; % [m^3] gas volume at charge pressure
+    par.Vc_lout = (3000)*1e-3; % [(L) -> m^3] gas volume at charge pressure
     par.pc_lout = 0.2e6; % [Pa] charge pressure
      % LPA at outlet from LP pipeline
-    par.Vc_lin = 1000e-3; % [m^3] gas volume at charge pressure
+    par.Vc_lin = (3000)*1e-3; % [(L) -> m^3] gas volume at charge pressure
     par.pc_lin = 0.2e6; % [Pa] charge pressure
      % HPA at inlet to HP pipeline
-    par.Vc_hin = 3000e-3; % [m^3] gas volume at charge pressure
+    par.Vc_hin = (6000)*1e-3; % [(L) -> m^3] gas volume at charge pressure
     par.pc_hin = 4e6; % [Pa] charge pressure
      % HPA at outlet from HP pipeline and inlet to PCU
-    par.Vc_hout = 2000e-3; % [m^3] gas volume at charge pressure
+    par.Vc_hout = (6000)*1e-3; % [(L) -> m^3] gas volume at charge pressure
     par.pc_hout = 4e6; % [Pa] charge pressure
      % HPA at inlet to RO module and outlet from PCU
-    par.Vc_RO = 3000e-3; % [m^3] gas volume at charge pressure
+    par.Vc_RO = (1000)*1e-3; % [(L) -> m^3] gas volume at charge pressure
     par.pc_RO = 4e6; % [Pa] charge pressure
 
      
@@ -152,9 +152,9 @@ function par = parameters_seriesPTO(par,filenameCoeff,filenameRadSS)
     par.control.p_RO_nom = 4e6; % [Pa] (not actually used for as control input)
     par.control.p_RO_max = 8.2e6; % [Pa]
     par.control.p_RO_min = max(3e6,par.pc_RO); % [Pa]
-    pumpSpeed = @(Pfeed) par.Sro*par.Aperm/par.Y...
-                            *(Pfeed - par.p_osm - par.p_o)...
-                            /(2*pi*par.D_pm); % [rad/s]
+    pumpSpeed = @(Pfeed) (1-(1-par.Y)*par.eta_ERUv^2)* ...
+                         par.Sro*par.Aperm/par.Y/par.D_pm...
+                            *(Pfeed - par.p_osm - par.p_o); % [rad/s]
     w_pm_max_RO = pumpSpeed(par.control.p_RO_max);
     w_pm_min_RO = pumpSpeed(par.control.p_RO_min);
     par.control.w_pm_ctrl.nom = pumpSpeed(par.control.p_RO_nom);
@@ -171,14 +171,14 @@ function par = parameters_seriesPTO(par,filenameCoeff,filenameRadSS)
     % Charging system (Intake & Boost pump)
     par.cn = 7;
     par.cq = -1e6;
-    par.w_c = (3600)*2*pi/60; % [rpm -> rad/s]
+    par.w_c = (3600)*2*pi/60; % [(rpm) -> rad/s]
     par.eta_c = 0.7;  % pumping efficiency of pressure boost pump
     par.eta_m = 0.9;  % efficiency of charge pump motor
     par.p_tank = .65e6;
 
     % Pressure relief valves
      % low-pressure inlet to pipeline/outlet of charge pump
-    maxPressure = 1e6; % [Pa]
+    maxPressure = 10e6; % [Pa]
     margin = 5e4; % [Pa]
     maxFlow = 100e-3; % [m^3/s]
     par.linPRV.p_crack = maxPressure - margin;
@@ -186,7 +186,7 @@ function par = parameters_seriesPTO(par,filenameCoeff,filenameRadSS)
                  - (maxPressure-margin)*maxPressure^(1/2))/maxFlow;
 
      % low-pressure inlet to WEC-driven pump
-    maxPressure = 1e6; % [Pa]
+    maxPressure = 10e6; % [Pa]
     margin = 5e4; % [Pa]
     maxFlow = 100e-3; % [m^3/s]
     par.loutPRV.p_crack = maxPressure - margin;
@@ -194,15 +194,15 @@ function par = parameters_seriesPTO(par,filenameCoeff,filenameRadSS)
                  - (maxPressure-margin)*maxPressure^(1/2))/maxFlow;
 
      % high-pressure outlet of WEC-driven pump
-    maxPressure = 30e6; % [Pa]
+    maxPressure = 300e6; % [Pa]
     margin = 5e4; % [Pa]
-    maxFlow = 100e-3; % [m^3/s]
+    maxFlow = (100)*1e-3; % [(L/s) -> m^3/s]
     par.hinPRV.p_crack = maxPressure - margin;
     par.hinPRV.C = (maxPressure^(3/2) ...
                  - (maxPressure-margin)*maxPressure^(1/2))/maxFlow;
     
      % high-pressure outlet of pipeline/inlet to house power pump/motor
-    maxPressure = 30e6; % [Pa]
+    maxPressure = 300e6; % [Pa]
     margin = 5e4; % [Pa]
     maxFlow = 100e-3; % [m^3/s]
     par.houtPRV.p_crack = maxPressure - margin;
@@ -210,7 +210,7 @@ function par = parameters_seriesPTO(par,filenameCoeff,filenameRadSS)
                  - (maxPressure-margin)*maxPressure^(1/2))/maxFlow;
 
      % feed inlet to RO module
-    maxPressure = 8.3e6; % [Pa]
+    maxPressure = 80.3e6; % [Pa]
     margin = 5e4; % [Pa]
     maxFlow = 100e-3; % [m^3/s]
     par.ROPRV.p_crack = maxPressure - margin;

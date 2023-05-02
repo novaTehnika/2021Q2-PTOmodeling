@@ -51,7 +51,33 @@ function [dydt, nonState, control] = sys_seriesPTO(t,y,par)
 %
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Define indicies of state vector
+iyp_lin = [];
+iyp_lout = [];
+iyp_hin = [];
+iyp_hout = [];
+iyp_RO = [];
+
+iyw_pm = [];
+
+iyp_filt = [];
+iy_errInt_p_filt = [];
+iy_errInt_w_pm = [];
+iycontrol = [];
+
+iytheta = [];
+iytheta_dot = [];
+iyrad = [];
+
+iyLPPL = [];
+iyqLP = [];
+iypLP = [];
+iyHPPL = [];
+iyqHP = [];
+iypHP = [];
+
 stateIndex_seriesPTO
+
+iWEC = [iytheta iytheta_dot iyrad];
 
 
 % Calculate control input and the change in controller states (if any)
@@ -125,7 +151,7 @@ dydt(iyHPPL) = dydt_pLineHP;
          % Error
         err_w_pm = y(iyw_pm) - control.w_pm_nom;
          % Feedforward
-        T_ff = 2*pi*par.D_pm*(par.control.p_hout_nom - par.control.p_RO_nom);
+        T_ff = par.D_pm*(par.control.p_hout_nom - par.control.p_RO_nom);
          % Control signal
         control.Tgen = T_ff ...
             + (par.control.Tgen_ctrl.kp*err_w_pm ...
@@ -163,37 +189,38 @@ dydt(iyHPPL) = dydt_pLineHP;
         nonState.C_RO = capAccum(y(iyp_RO),par.pc_RO,par.Vc_RO,f);
 
         % WEC-driven pump
-        WECpumpPumping = y(iytheta_dot)*(y(iyp_hin)-0) >= 0;
-        WECpumpMotoring = y(iytheta_dot)*(y(iyp_hin)-0) < 0;
+        delta_p_wp = y(iyp_hin)-y(iyp_lout);
+        WECpumpPumping = y(iytheta_dot)*delta_p_wp < 0;
+        WECpumpMotoring = y(iytheta_dot)*delta_p_wp >= 0;
         nonState.q_w = (WECpumpPumping*par.eta_v_WEC ...
                     + WECpumpMotoring/par.eta_v_WEC)...
-                    * 2*pi*par.D_WEC*abs(y(iytheta_dot));
+                    * par.D_WEC*abs(y(iytheta_dot));
 
         nonState.T_pto = -sign(y(iytheta_dot))...
                     * (WECpumpPumping/par.eta_m_WEC ...
                     + WECpumpMotoring*par.eta_m_WEC)...
                     * (abs(y(iytheta_dot)) > 5e-3)...
-                    * par.D_WEC*(y(iyp_hin)-y(iyp_lout));
+                    * par.D_WEC*delta_p_wp;
 
         % house power pump/motor
         delta_p_pm = y(iyp_RO) - y(iyp_hout);
         nonState.pmPumping = y(iyw_pm)*(delta_p_pm) >= 0;
         nonState.pmMotoring = y(iyw_pm)*(delta_p_pm) < 0;
 
-        volLoss_pm = par.C_s*(delta_p_pm/(par.mu*abs(y(iyw_pm)))) ...
-                           + (delta_p_pm/beta)*(par.V_r + 1);
+        volLoss_pm = par.APP.C_s*(delta_p_pm/(par.mu*abs(y(iyw_pm)))) ...
+                           + (delta_p_pm/par.beta)*(par.APP.V_r + 1);
         nonState.eta_v_pm = nonState.pmPumping*(1 - volLoss_pm) ...
                           + nonState.pmMotoring/(1 + volLoss_pm);
         nonState.q_pm = (nonState.pmPumping*nonState.eta_v_pm ...
                         + nonState.pmMotoring/nonState.eta_v_pm) ...
-                        *2*pi*par.D_pm*y(iyw_pm);
+                        *par.D_pm*y(iyw_pm);
 
-        mechLoss_pm = par.C_v*mu*abs(y(iyw_pm))/delta_p_pm + C_f;
+        mechLoss_pm = par.APP.C_v*par.mu*abs(y(iyw_pm))/delta_p_pm + par.APP.C_f;
         nonState.eta_m_pm = nonState.pmPumping/(1 + mechLoss_pm) ...
                           + nonState.pmMotoring*(1 - mechLoss_pm);
-        nonState.Tpm = (nonState.pmPumping*nonState.eta_m_pm ...
-                        + nonState.pmMotoring/nonState.eta_m_pm)...
-                        *2*pi*par.D_pm*(delta_p_pm);
+        nonState.Tpm = (nonState.pmPumping/nonState.eta_m_pm ...
+                        + nonState.pmMotoring*nonState.eta_m_pm)...
+                        *par.D_pm*delta_p_pm;
 
         % Reverse osmosis module          
         nonState.q_perm = par.Sro*par.Aperm*(y(iyp_RO) - par.p_perm - par.p_osm);

@@ -1,4 +1,4 @@
-function out = sim_seriesPTO(par)
+function out = sim_seriesPTO(y0,par)
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % sim_seriesPTO.m function m-file
 % AUTHORS:
@@ -50,6 +50,31 @@ function out = sim_seriesPTO(par)
 %   along with this program. If not, see <https://www.gnu.org/licenses/>.
 %
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Define indicies of state vector
+iyp_lin = [];
+iyp_lout = [];
+iyp_hin = [];
+iyp_hout = [];
+iyp_RO = [];
+
+iyw_pm = [];
+
+iyp_filt = [];
+iy_errInt_p_filt = [];
+iy_errInt_w_pm = [];
+iycontrol = [];
+
+iytheta = [];
+iytheta_dot = [];
+iyrad = [];
+
+iyLPPL = [];
+iyqLP = [];
+iypLP = [];
+iyHPPL = [];
+iyqHP = [];
+iypHP = [];
+
 stateIndex_seriesPTO % load state indices
 
 %% %%%%%%%%%%%%   SOLUTION   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -74,11 +99,11 @@ stateIndex_seriesPTO % load state indices
     out.par = par;
     
     % determine number of time steps
-    itVec = find(out.t >= par.tstart);
+    itVec = find(t >= par.tstart);
     
     % Extract system states from simulation results
     out.t = t(itVec);
-    out.y = y(itVec,);
+    out.y = y(itVec,:);
     
     out.p_lin = y(itVec,iyp_lin);
     out.p_lout = y(itVec,iyp_lout);
@@ -106,8 +131,11 @@ stateIndex_seriesPTO % load state indices
     % Post-process non-state variables and state derivatives
     syspost = @(t,y,par) sysPost(t,y,par);
 
-    parfor it = itVec 
-        [dydt(it,:), nonState(it), control(it)] = syspost(t(it),y(it,:),par);
+    nt_ramp = itVec(1)-1;
+    parfor it = 1:length(itVec)
+        
+        [dydt(it,:), nonState(it), control(it)] = ...
+                            syspost(t(it+nt_ramp),y(it+nt_ramp,:),par);
         
         % Move WEC torque results up a level in nonState stucture so that
         % they can be used like arrays in assiging to the output structure
@@ -117,131 +145,155 @@ stateIndex_seriesPTO % load state indices
     end
     
     % State derivatives
-    out.dydt = dydt(itVec);
+    out.dydt = dydt;
     
      % System input: wave elevation
-    out.waveElev = [nonState(itVec).waveElev]';
+    out.waveElev = [nonState(:).waveElev]';
     
      % forces on WEC
-    out.T_pto = [nonState(itVec).T_pto]';
-    out.T_hydroStatic = [temp(itVec).T_hydroStatic]';
-    out.T_wave = [temp(itVec).T_wave]';
-    out.T_rad = [temp(itVec).T_rad]';
+    out.T_pto = [nonState(:).T_pto]';
+    out.T_hydroStatic = [temp(:).T_hydroStatic]';
+    out.T_wave = [temp(:).T_wave]';
+    out.T_rad = [temp(:).T_rad]';
           
      % Control signals
-    out.control.w_pm_nom = [control(itVec).w_pm_nom]';
+    out.control.w_pm_nom = [control(:).w_pm_nom]';
    
      % torque on pump/motor and generator shafts
-    out.Tgen = [control(itVec).Tgen]';
-    out.Tpm = [nonState(itVec).Tpm]';
+    out.Tgen = [control(:).Tgen]';
+    out.Tpm = [nonState(:).Tpm]';
     
      % WEC-driven pump flow
-    out.q_wp = [nonState(itVec).q_w]';
+    out.q_wp = [nonState(:).q_w]';
     
      % pump/motor flow
-    out.q_pm = [nonState(itVec).q_pm]';
+    out.q_pm = [nonState(:).q_pm]';
     
      % RO performance
-    out.q_perm = [nonState(itVec).q_perm]';
+    out.q_perm = [nonState(:).q_perm]';
+    out.q_brine = [nonState(:).q_brine]';
+    out.q_feed = out.q_perm + out.q_brine;
 
      % ERU flow rate
-    out.q_brine = [nonState(itVec).q_brine]';
-    out.q_ERUfeed = [nonState(itVec).q_ERUfeed]';
+    out.q_ERUfeed = [nonState(:).q_ERUfeed]';
 
      % Charge Pump
-    out.q_c = [nonState(itVec).q_c]';
+    out.q_c = [nonState(:).q_c]';
 
      % Pressure relief valves
-    out.q_linPRV = [nonState(itVec).q_linPRV]';
-    out.q_loutPRV = [nonState(itVec).q_loutPRV]';
-    out.q_hinPRV = [nonState(itVec).q_hinPRV]';
-    out.q_houtPRV = [nonState(itVec).q_houtPRV]';
-    out.q_ROPRV = [nonState(itVec).q_ROPRV]';
+    out.q_linPRV = [nonState(:).q_linPRV]';
+    out.q_loutPRV = [nonState(:).q_loutPRV]';
+    out.q_hinPRV = [nonState(:).q_hinPRV]';
+    out.q_houtPRV = [nonState(:).q_houtPRV]';
+    out.q_ROPRV = [nonState(:).q_ROPRV]';
 
 %% Post-process analysis
 
     %% Energy analysis
     % WEC-drive pump
     out.power.P_WEC = -out.T_pto.*out.theta_dot;
-    out.power.P_wpLoss = out.T_pto.*out.theta_dot ...
+    out.power.P_wpLoss = out.power.P_WEC ...
                        - out.q_wp.*(out.p_hin-out.p_lout);
 
     % Pump/motor and generator
-    out.power.P_pmLoss = (out.p_hout - out.p_RO).*out.q_pm ...
+    out.power.P_pmLoss = (out.p_RO - out.p_hout).*out.q_pm ...
                        - out.Tpm.*out.w_pm;
-    out.power.P_gen = ((out.Tgen.*out.w_pm > 0).*par.eta_g ...
-                    + (out.Tgen.*out.w_pm < 0)./par.eta_g) ...
+    out.power.P_gen = -((-out.Tgen.*out.w_pm > 0).*par.eta_g ...
+                    + (-out.Tgen.*out.w_pm < 0)./par.eta_g) ...
                     .*out.Tgen.*out.w_pm;
-    out.power.P_genLoss = out.Tgen.*out.w_pm - out.power.P_gen;
+    out.power.P_genLoss = -out.Tgen.*out.w_pm - out.power.P_gen;
+    out.power.deltaE_pmgenFlywheel = 0.5*out.par.Jpm*(out.w_pm(end).^2-out.w_pm(1).^2);
 
     % Charge pump
-    out.power.P_cElec = 1/(par.eta_c*par.eta_m)*out.q_c.*(out.p_lin-out.p_o);
-    out.power.P_cLoss = out.power.P_c - out.q_c.*(out.p_lin-out.p_o);
+    out.power.P_cElec = 1/(par.eta_c*par.eta_m)*out.q_c.*(out.p_lin-out.par.p_o);
+    out.power.P_cLoss = out.power.P_cElec - out.q_c.*(out.p_lin-out.par.p_o);
 
     % ERU
-    PbalERU = 1/(par.eta_ERUv*par.eta_ERUm)*out.q_ERUfeed.*(out.p_RO - out.p_lin) ...
-            - par.eta_ERUv*par.eta_ERUm*out.q_brine.*(out.p_RO - out.p_o);
-    out.power.P_eruElec = ((PbalERU > 0)./par.eta_m ...
+    P_ERUfeed = out.q_ERUfeed.*(out.p_RO - out.p_lin);
+    P_ERUbrine = out.q_brine.*(out.p_RO - out.par.p_o);
+    PbalERU = 1/(par.eta_ERUv*par.eta_ERUm)*P_ERUfeed ...
+            - par.eta_ERUv*par.eta_ERUm*P_ERUbrine;
+    out.power.P_ERULoss = PbalERU + P_ERUbrine - P_ERUfeed;
+    out.power.P_ERUelec = ((PbalERU > 0)./par.eta_m ...
                         + (PbalERU < 0).*par.eta_m) ...
                         .*PbalERU;
-    out.power.P_ERUloss = out.power.P_eruElec - PbalERU;
+    out.power.P_ERUelecLoss = out.power.P_ERUelec - PbalERU;
 
     % Pipelines
     out.power.P_pLineLossLP = [nonState.pLinePPfricLP]';
     out.power.P_pLineLossHP = [nonState.pLinePPfricHP]';
 
     % Pressure relief valves
-    out.power.P_linPRV = out.q_linPRV.*(out.p_lin-out.p_o);
-    out.power.P_loutPRV = out.q_loutPRV.*(out.p_lout-out.p_o);
+    out.power.P_linPRV = out.q_linPRV.*(out.p_lin-out.par.p_o);
+    out.power.P_loutPRV = out.q_loutPRV.*(out.p_lout-out.par.p_o);
     out.power.P_hinPRV = out.q_hinPRV.*(out.p_hin-out.p_lout);
     out.power.P_houtPRV = out.q_houtPRV.*(out.p_hout-out.p_lin);
     out.power.P_ROPRV = out.q_ROPRV.*(out.p_RO-out.p_lin);
 
     % Electrical Energy Storage
     out.power.P_battery = out.power.P_gen ...
-                        - out.power.P_cElec - out.power.P_eruElec;
+                        - out.power.P_cElec - out.power.P_ERUelec;
     out.power.deltaE_battery = trapz(out.t,out.power.P_battery);
 
     %% Energy Balance
-    deltaE_lin = par.pc_lin*par.Vc_lin...
-                *log(out.p_lin(end)/out.p_lin(1));
-    deltaE_lout = par.pc_lout*par.Vc_lout...
-                *log(out.p_lout(end)/out.p_lout(1));
-    deltaE_hin = par.pc_hin*par.Vc_hin...
-                *log(out.p_hin(end)/out.p_hin(1));
-    deltaE_hout = par.pc_hout*par.Vc_hout...
-                *log(out.p_hout(end)/out.p_hout(1));
-    deltaE_RO = par.pc_RO*par.Vc_RO...
-                *log(out.p_RO(end)/out.p_RO(1));
+    % Change in available potential energy in accumulators
+    deltaE_lin = trapz(out.t,(out.q_c - out.qLP(:,1) - out.q_ERUfeed ...
+                - out.q_linPRV + out.q_houtPRV + out.q_ROPRV).*(out.p_lin-out.par.p_o));
+    deltaE_lout = trapz(out.t,(out.qLP(:,2) - out.q_wp ...
+                - out.q_loutPRV + out.q_hinPRV).*(out.p_lout-out.par.p_o));
+    deltaE_hin = trapz(out.t,(out.q_wp - out.qHP(:,1) ...
+                - out.q_hinPRV).*(out.p_hin-out.par.p_o));
+    deltaE_hout = trapz(out.t,(out.qHP(:,2) - out.q_pm ...
+                - out.q_houtPRV).*(out.p_hout-out.par.p_o));
+    deltaE_RO = trapz(out.t,(out.q_pm - out.q_feed ...
+                + out.q_ERUfeed - out.q_ROPRV).*(out.p_RO-out.par.p_o));
 
-    P_bnds = out.power.P_WEC - out.q_perm.*(out.p_RO - par.p_o) ...
-            - out.power.P_wpLoss - out.power.P_pmLoss - out.power.P_genLoss ...
-            - out.power.P_cLoss - out.power.P_ERUloss ...
-            - out.power.P_pLineLossLP - out.power.P_pLineLossHP ...
-            - out.power.P_linPRV - out.power.P_loutPRV ...
-            - out.power.P_hinPRV - out.power.P_houtPRV - out.power.P_ROPRV;
+    % Change in available potential and kinetic energy in pipelines
+    deltaE_LP = trapz(out.t,(out.qLP(:,1:end-1)-out.qLP(:,2:end)).*(out.pLP(:,:)-out.par.p_o)) ...
+                   + 0.5*par.I(1)*sum(out.qLP(end,:).^2 - out.qLP(1,:).^2);
+    deltaE_HP = trapz(out.t,(out.qHP(:,1:end-1)-out.qHP(:,2:end)).*(out.pHP(:,:)-out.par.p_o)) ...
+                   + 0.5*par.I(2)*sum(out.qHP(end,:).^2 - out.qHP(1,:).^2);
 
+    % Total change in stored energy in the system
+    deltaE_sys = deltaE_LP + deltaE_HP ...
+        + deltaE_lin + deltaE_lout + deltaE_hin + deltaE_hout + deltaE_RO ...
+        + out.power.deltaE_battery + out.power.deltaE_pmgenFlywheel;
 
-    out.Ebal = deltaE_lin + deltaE_lout + deltaE_hin + deltaE_hout + deltaE_RO ...
-           + out.power.deltaE_battery + trapz(out.t,P_bnds);
+    % Power flow at boundaries
+    P_in = out.power.P_WEC;
+    P_out = out.q_perm.*(out.p_RO - out.par.p_o);
+    P_loss = out.power.P_wpLoss + out.power.P_pmLoss + out.power.P_genLoss ...
+            + out.power.P_cLoss + out.power.P_ERULoss + out.power.P_ERUelecLoss...
+            + out.power.P_pLineLossLP + out.power.P_pLineLossHP ...
+            + out.power.P_linPRV + out.power.P_loutPRV ...
+            + out.power.P_hinPRV + out.power.P_houtPRV + out.power.P_ROPRV;
+    P_bnds = P_in - P_out - P_loss;
+
+    % Total balance of energy: energy added minus change in energy stored
+    out.Ebal = trapz(out.t,P_bnds) - deltaE_sys;
 
     %% Mass Balance
-    deltaV_lin = (1./out.p_lin(1) - 1./out.p_lin(end)) ...
-                 *par.pc_lin*par.Vc_lin;
-    deltaV_lout = (1./out.p_lout(1) - 1./out.p_lout(end)) ...
-                 *par.pc_lout*par.Vc_lout;
-    deltaV_hin = (1./out.p_hin(1) - 1./out.p_hin(end)) ...
-                 *par.pc_hin*par.Vc_hin;
-    deltaV_hout = (1./out.p_hout(1) - 1./out.p_hout(end)) ...
-                 *par.pc_hout*par.Vc_hout;
-    deltaV_RO = (1./out.p_RO(1) - 1./out.p_RO(end)) ...
-                 *par.pc_RO*par.Vc_RO;
+    deltaV_lin = trapz(out.t,out.q_c - out.qLP(:,1) - out.q_ERUfeed ...
+                - out.q_linPRV + out.q_houtPRV + out.q_ROPRV);
+    deltaV_lout = trapz(out.t,out.qLP(:,2) - out.q_wp ...
+                - out.q_loutPRV + out.q_hinPRV);
+    deltaV_hin = trapz(out.t,out.qHP(:,2) - out.q_pm ...
+                - out.q_houtPRV);
+    deltaV_hout = trapz(out.t,out.qHP(:,2) - out.q_pm ...
+                - out.q_houtPRV);
+    deltaV_RO = trapz(out.t,out.q_pm - out.q_perm - out.q_brine ...
+                + out.q_ERUfeed - out.q_ROPRV);
 
-    out.deltaV_total = deltaV_lin + deltaV_lout ...
+    deltaV_LP = trapz(out.t,out.qLP(:,1:end-1)-out.qLP(:,2:end));
+    deltaV_HP = trapz(out.t,out.qHP(:,1:end-1)-out.qHP(:,2:end));
+
+    out.deltaV_total = deltaV_LP + deltaV_HP + deltaV_lin + deltaV_lout ...
                      + deltaV_hin + deltaV_hout + deltaV_RO;
 
-    out.Vbal = out.deltaV_total + trapz(out.t,out.q_perm) ...
-               - trapz(out.t,out.q_c);
+    qbnds = out.q_c ...
+            - (out.q_perm + out.q_brine + out.q_linPRV + out.q_loutPRV);
+
+    out.Vbal = trapz(out.t,qbnds) - out.deltaV_total;
 
 %% %%%%%%%%%%%%   FUNCTIONS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

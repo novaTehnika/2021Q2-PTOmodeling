@@ -48,15 +48,16 @@ clear
 % clc
 addpath('WEC model') 
 addpath('WEC model\WECdata') 
-addpath('Series-type PTO') 
+addpath('Series-type PTO')
+addpath('Pipeline')
 addpath('Sea States')
 addpath('Solvers')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Simulation timeframe
-par.Tramp = 250; % [s] excitation force ramp period
+par.Tramp = 25; % [s] excitation force ramp period
 par.tstart = 0; %[s] start time of simulation
-par.tend = 2000; %[s] end time of simulation
+par.tend = 50; %[s] end time of simulation
 
 % Solver parameters
 par.odeSolverRelTol = 1e-4; % Rel. error tolerance parameter for ODE solver
@@ -74,13 +75,13 @@ par = parameters_seriesPTO(par,...
     'nemohResults_vantHoff2009_20180802.mat','vantHoffTFCoeff.mat');
 
 % Define initial conditions
-stateIndex_seriesPTO % load state indices
-initialConditionDefault_seriesPTO % default ICs
+stateIndex_seriesPTO % load state indices, provides 'iy_...'
+initialConditionDefault_seriesPTO % default ICs, provides 'y0'
 
 %% Special modifications to base parameters
-par.Sro = 4500; % [m^3]
-par.D_WEC = 0.275;         % [m^3/rad] flap pump displacement
-par.control.p_hout_nom = 12e6; % [Pa]
+par.Sro = 5000; % [m^3]
+par.D_WEC = 0.3;         % [m^3/rad] flap pump displacement
+par.control.p_hout_nom = 7e6; % [Pa]
 
 %% %%%%%%%%%%%%   COLLECT DATA  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -192,7 +193,7 @@ ylabel('Flow rate (m^3/s)')
 legend('q_{pm}','q_{perm}')
 
 ax(2) = subplot(3,1,2);
-plot(out.t,out.q_w(:))
+plot(out.t,out.q_wp(:))
 hold on
 plot(out.t,out.qHP(:,1))
 plot(out.t,out.qHP(:,end))
@@ -201,7 +202,7 @@ ylabel('Flow rate (m^3/s)')
 legend('q_{w}','q_{h,in}','q_{h,out}')
 
 ax(3) = subplot(3,1,3);
-plot(out.t,out.q_w(:))
+plot(out.t,out.q_wp(:))
 hold on
 plot(out.t,out.qLP(:,1))
 plot(out.t,out.qLP(:,end))
@@ -249,7 +250,7 @@ legend('nominal','actual','Generator')
 ax(3) = subplot(4,1,3);
 hold on
 plot(out.t,1e3*out.q_pm)
-plot(out.t,1e3*out.q_w)
+plot(out.t,1e3*out.q_wp)
 ylabel('Flow rate (Lpm)')
 legend('q_{pm}','q_{w}')
 
