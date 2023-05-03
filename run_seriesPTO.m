@@ -49,7 +49,8 @@ clear
 addpath('WEC model') 
 addpath('WEC model\WECdata') 
 addpath('Series-type PTO')
-addpath('Pipeline')
+addpath('Components')
+addpath('Components/Pipeline')
 addpath('Sea States')
 addpath('Solvers')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

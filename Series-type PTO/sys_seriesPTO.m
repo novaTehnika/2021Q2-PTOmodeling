@@ -33,6 +33,8 @@ function [dydt, nonState, control] = sys_seriesPTO(t,y,par)
 % 07/08/2022 - replaced state indice specification in file with seperate
 % script, stateIndex_seriesPTO.m.
 % 08/09/2022 - added pressure relief valve to system using function "prv()"
+% 5/3/2023 - capAccum(), lineCap(), and prv() moved to separate function 
+% m-files
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 %
@@ -178,15 +180,15 @@ dydt(iyHPPL) = dydt_pLineHP;
         % Accumulator capacitance
         f = 1e-2; % fraction of dead volume of working fluid compared to 
                   % charge volume
-        nonState.C_lin = capAccum(y(iyp_lin),par.pc_lin,par.Vc_lin,f) ...
-                        + capLine(y(iyp_lin),1);
-        nonState.C_lout = capAccum(y(iyp_lout),par.pc_lout,par.Vc_lout,f) ...
-                        + capLine(y(iyp_lout),1);
-        nonState.C_hin = capAccum(y(iyp_hin),par.pc_hin,par.Vc_hin,f) ...
-                        + capLine(y(iyp_hin),2);
-        nonState.C_hout = capAccum(y(iyp_hout),par.pc_hout,par.Vc_hout,f) ...
-                        + capLine(y(iyp_hout),2);
-        nonState.C_RO = capAccum(y(iyp_RO),par.pc_RO,par.Vc_RO,f);
+        nonState.C_lin = capAccum(y(iyp_lin),par.pc_lin,par.Vc_lin,f,par) ...
+                        + lineCap(y(iyp_lin),1,par);
+        nonState.C_lout = capAccum(y(iyp_lout),par.pc_lout,par.Vc_lout,f,par) ...
+                        + lineCap(y(iyp_lout),1,par);
+        nonState.C_hin = capAccum(y(iyp_hin),par.pc_hin,par.Vc_hin,f,par) ...
+                        + lineCap(y(iyp_hin),2,par);
+        nonState.C_hout = capAccum(y(iyp_hout),par.pc_hout,par.Vc_hout,f,par) ...
+                        + lineCap(y(iyp_hout),2,par);
+        nonState.C_RO = capAccum(y(iyp_RO),par.pc_RO,par.Vc_RO,f,par);
 
         % WEC-driven pump
         delta_p_wp = y(iyp_hin)-y(iyp_lout);
@@ -241,37 +243,6 @@ dydt(iyHPPL) = dydt_pLineHP;
         nonState.q_houtPRV = prv(y(iyp_hout),par.houtPRV.p_crack,par.houtPRV.C);
         nonState.q_ROPRV = prv(y(iyp_RO),par.ROPRV.p_crack,par.ROPRV.C);
 
-        function C = capAccum(p,pc,Vc,f)
-            % calculate effective bulk modulus of dead volume
-            beta_eff = par.beta/(1 + par.beta*(par.R*par.p_o/p^2));
-            % calculate capacitance of accumulator and dead volume combined
-            C = (p>pc) * Vc*pc/p^2 ...
-                + f*Vc/beta_eff;
-        end
-
-        function C = capLine(p,lineID)
-            % calculate capacitance in pipeline lump
-
-            V_line = par.A_line(lineID)*par.L_line(lineID)/par.n_seg(lineID); % volume of each lump
-
-            % calculate effective bulk modulus 
-
-             % via Cho method (as arranged in Yudell, 2017)
-    %         beta_eff = par.beta* ...
-    %         (((p/par.p_o)^(1/par.gamma)*exp((par.p_o-p)/par.beta)+par.R) / ...
-    %         (par.R/par.gamma*par.beta/p+(p/par.p_o)^(1/par.gamma)*...
-    %         exp((par.p_o-p)/par.beta))); 
-
-             % isothermal bulk modulus
-            beta_eff = par.beta/(1 + par.beta*(par.R*par.p_o/p^2));
-
-            % calculate capacitance
-            C = V_line/beta_eff;
-        end
-
-        function q = prv(p,p_crack,C)
-            q = 1/C*max(0,p.^(3/2)-p_crack*p.^(1/2));
-        end
     end
 
 end

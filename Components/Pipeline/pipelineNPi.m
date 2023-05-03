@@ -19,6 +19,7 @@ function [q_in, q_out, dydt_pLine, pLsoln] = ...
 % 3/25/2021 - created from implimentation in simPTO_V01x05.m
 % 11/2/2021 - added lineID specification for par.n_seg for "load arrays for
 % easier indexing" (fixing a mistake). Added lineID to parameters
+% 5/3/2023 - lineCap() and flowR() moved to separate function m-files
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -49,16 +50,17 @@ function [q_in, q_out, dydt_pLine, pLsoln] = ...
     dydt_pLine = zeros(2*par.n_seg(lineID)-1,1); 
 
     % dq/dt at first pi-lump
-    dydt_pLine(1) = (p_in - p(1) - flowR(q(1))*q(1))...
+    dydt_pLine(1) = (p_in - p(1) - flowR(q(1),lineID,par)*q(1))...
                 /par.I(lineID);
 
     % dp/dt and dq/dt at remaining pi-lumps
     for j = 1:par.n_seg(lineID)-1 
         % dp/dt
-        dydt_pLine(2*j) = (q(j) - q(j+1)) / lineCap(p(j)); 
+        dydt_pLine(2*j) = (q(j) - q(j+1)) / lineCap(p(j),lineID,par); 
         % dq/dt
-        dydt_pLine(2*j+1) = (p(j) - p(j+1) - flowR(q(j+1))*q(j+1))...
-                       /par.I(lineID); 
+        dydt_pLine(2*j+1) = (p(j) - p(j+1) ...
+                        - flowR(q(j+1),lineID,par)*q(j+1))...
+                        /par.I(lineID); 
     end
 
     % Calculate friction loss
@@ -69,7 +71,7 @@ function [q_in, q_out, dydt_pLine, pLsoln] = ...
         
         % calc. friction loss in each segment
         for i = 1:par.n_seg(lineID)
-            PPfric(i) = flowR(q(i))*q(i)^2;
+            PPfric(i) = flowR(q(i),lineID,par)*q(i)^2;
         end
 
         % calc. total friction loss
@@ -78,55 +80,6 @@ function [q_in, q_out, dydt_pLine, pLsoln] = ...
     else
         pLsoln = [];
         
-    end
-
-    %% Nested functions of pipeline(*)
-    function R = flowR(q) 
-    % Purpose: calculate flow resistance for either laminar or 
-    % turbulent flow 
-           
-        % parameters of the pipe friction model 
-        % with linear transisiton in transitional region of laminar and
-        % turbulent regimes
-        Re1 = 2300; % transition form laminar to transitional flow
-        f1 = 64/Re1; % friction factor at transisiton
-        Re2 = 4500; % transition form transitional to laminar flow
-        f2  = 0.316*Re2^-0.25; % friction factor at transisiton
-
-        % calculate the Re of flow (set floor to avoid zero result)
-        Re = max(4*par.rho*abs(q)/(par.mu*pi*par.d_line(lineID)),1e-3);
-
-        % Calculate darcy friction factor based on Reynolds number
-        if Re < Re1  % Laminar flow regime
-            f = 64/max(Re,0.01);
-        elseif Re < Re2 % transitional flow 
-            f = f1 + (f2-f1)/(Re2 - Re1)*(Re - Re1);
-        else % turbulent flow regime
-            f = 0.316*Re^-.25; % Blasius correlation
-        end
-        % calculate flow resistance coefficient
-        R = f*Re*par.mu*(par.L_line(lineID)/par.n_seg(lineID)) ...
-                          /(2*par.d_line(lineID)^2*par.A_line(lineID));
-    end
-    
-    function C = lineCap(p)
-        % calculate capacitance in pipeline lump
-        
-        V_line = par.A_line(lineID)*par.L_line(lineID)/par.n_seg(lineID); % volume of each lump
-        
-        % calculate effective bulk modulus 
-        
-         % via Cho method (as arranged in Yudell, 2017)
-%         beta_eff = par.beta* ...
-%         (((p/par.p_o)^(1/par.gamma)*exp((par.p_o-p)/par.beta)+par.R) / ...
-%         (par.R/par.gamma*par.beta/p+(p/par.p_o)^(1/par.gamma)*...
-%         exp((par.p_o-p)/par.beta))); 
-         
-         % isothermal bulk modulus
-        beta_eff = par.beta/(1 + par.beta*(par.R*par.p_o/p^2));
-        
-        % calculate capacitance
-        C = V_line/beta_eff;
     end
 
 end
