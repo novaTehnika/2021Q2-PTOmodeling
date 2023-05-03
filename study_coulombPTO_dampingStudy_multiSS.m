@@ -74,9 +74,9 @@ par.wave.rngSeedPhase = 3; % seed for the random number generator
 load('SSdata_HumboltBay_1D.mat')
 nSS = length(Tp);
 
-nVar1 = 61;
+nVar1 = 121;
 % Tcoulomb = 1e6*linspace(1,10,nVar1);% [Nm] PTO reaction torque
-Tcoulomb = 1e6*logspace(log10(0.1),log10(10),nVar1);% [Nm] PTO reaction torque
+Tcoulomb = 1e6*logspace(log10(0.1),log10(15),nVar1);% [Nm] PTO reaction torque
 
 saveSimData = 0; % save simulation data (1) or just output variables (0)
 
