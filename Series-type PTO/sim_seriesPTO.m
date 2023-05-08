@@ -139,7 +139,7 @@ stateIndex_seriesPTO % load state indices
         
         % Move WEC torque results up a level in nonState stucture so that
         % they can be used like arrays in assiging to the output structure
-        temp(it).T_hydroStatic = nonState(it).torqueWEC.hydroStatic
+        temp(it).T_hydroStatic = nonState(it).torqueWEC.hydroStatic;
         temp(it).T_wave = nonState(it).torqueWEC.wave;
         temp(it).T_rad = nonState(it).torqueWEC.radiation;    
     end
@@ -237,21 +237,45 @@ stateIndex_seriesPTO % load state indices
 
     %% Energy Balance
     % Change in available potential energy in accumulators
-    deltaE_lin = trapz(out.t,(out.q_c - out.qLP(:,1) - out.q_ERUfeed ...
-                - out.q_linPRV + out.q_houtPRV + out.q_ROPRV).*(out.p_lin-out.par.p_o));
-    deltaE_lout = trapz(out.t,(out.qLP(:,2) - out.q_wp ...
-                - out.q_loutPRV + out.q_hinPRV).*(out.p_lout-out.par.p_o));
-    deltaE_hin = trapz(out.t,(out.q_wp - out.qHP(:,1) ...
-                - out.q_hinPRV).*(out.p_hin-out.par.p_o));
-    deltaE_hout = trapz(out.t,(out.qHP(:,2) - out.q_pm ...
-                - out.q_houtPRV).*(out.p_hout-out.par.p_o));
-    deltaE_RO = trapz(out.t,(out.q_pm - out.q_feed ...
-                + out.q_ERUfeed - out.q_ROPRV).*(out.p_RO-out.par.p_o));
+    dp = 1e2;
+     % Low-pressure onshore
+    cap = @(p) capAccum(p,par.pc_lin,par.Vc_lin,par.f,par) + lineCap(p,1,par);
+    deltaE_lin = deltaE_NI(out.p_lin(1),out.p_lin(end),cap,dp);
+
+     % Low-pressure offshore
+    cap = @(p) capAccum(p,par.pc_lout,par.Vc_lout,par.f,par) + lineCap(p,1,par);
+    deltaE_lout = deltaE_NI(out.p_lout(1),out.p_lout(end),cap,dp);
+
+     % High-pressure offshore
+    cap = @(p) capAccum(p,par.pc_hin,par.Vc_hin,par.f,par) + lineCap(p,2,par);
+    deltaE_hin = deltaE_NI(out.p_hin(1),out.p_hin(end),cap,dp);
+
+     % High-pressure onshore
+    cap = @(p) capAccum(p,par.pc_hout,par.Vc_hout,par.f,par) + lineCap(p,2,par);
+    deltaE_hout = deltaE_NI(out.p_hout(1),out.p_hout(end),cap,dp);
+
+     % RO feed inlet
+    cap = @(p) capAccum(p,par.pc_RO,par.Vc_RO,par.f,par);
+    deltaE_RO = deltaE_NI(out.p_RO(1),out.p_RO(end),cap,dp);
 
     % Change in available potential and kinetic energy in pipelines
-    deltaE_LP = trapz(out.t,(out.qLP(:,1:end-1)-out.qLP(:,2:end)).*(out.pLP(:,:)-out.par.p_o)) ...
-                   + 0.5*par.I(1)*sum(out.qLP(end,:).^2 - out.qLP(1,:).^2);
-    deltaE_HP = trapz(out.t,(out.qHP(:,1:end-1)-out.qHP(:,2:end)).*(out.pHP(:,:)-out.par.p_o)) ...
+     % Low-pressure
+    cap = @(p) lineCap(p,1,par);
+    deltaE_LP = 0;
+    for i = 1:par.n_seg(1)-1
+        deltaE_LP = deltaE_LP + deltaE_NI(out.pLP(1,i),out.pLP(end,i),cap,dp);
+    end
+    deltaE_LP = deltaE_LP + 0.5*par.I(1)*sum(out.qLP(end,:).^2 - out.qLP(1,:).^2);
+
+     % High-pressure
+    cap = @(p) lineCap(p,2,par);
+    deltaE_HP = 0;
+    for i = 1:par.n_seg(1)-1
+        deltaE_HP = deltaE_HP + deltaE_NI(out.pHP(1,i),out.pHP(end,i),cap,dp);
+    end
+    deltaE_HP = deltaE_HP + 0.5*par.I(1)*sum(out.qLP(end,:).^2 - out.qLP(1,:).^2);
+
+    deltaE_HP_trap = trapz(out.t,(out.qHP(:,1:end-1)-out.qHP(:,2:end)).*(out.pHP(:,:)-out.par.p_o)) ...
                    + 0.5*par.I(2)*sum(out.qHP(end,:).^2 - out.qHP(1,:).^2);
 
     % Total change in stored energy in the system
@@ -271,29 +295,56 @@ stateIndex_seriesPTO % load state indices
 
     % Total balance of energy: energy added minus change in energy stored
     out.Ebal = trapz(out.t,P_bnds) - deltaE_sys;
+    out.Ebal_error = out.Ebal/trapz(out.t,P_in);
 
     %% Mass Balance
-    deltaV_lin = trapz(out.t,out.q_c - out.qLP(:,1) - out.q_ERUfeed ...
-                - out.q_linPRV + out.q_houtPRV + out.q_ROPRV);
-    deltaV_lout = trapz(out.t,out.qLP(:,2) - out.q_wp ...
-                - out.q_loutPRV + out.q_hinPRV);
-    deltaV_hin = trapz(out.t,out.qHP(:,2) - out.q_pm ...
-                - out.q_houtPRV);
-    deltaV_hout = trapz(out.t,out.qHP(:,2) - out.q_pm ...
-                - out.q_houtPRV);
-    deltaV_RO = trapz(out.t,out.q_pm - out.q_perm - out.q_brine ...
-                + out.q_ERUfeed - out.q_ROPRV);
+    % Change in fluid volume in accumulators
+    dp = 1e2;
+     % Low-pressure onshore
+    cap = @(p) capAccum(p,par.pc_lin,par.Vc_lin,par.f,par) + lineCap(p,1,par);
+    deltaV_lin = deltaV_NI(out.p_lin(1),out.p_lin(end),cap,dp);
 
-    deltaV_LP = trapz(out.t,out.qLP(:,1:end-1)-out.qLP(:,2:end));
-    deltaV_HP = trapz(out.t,out.qHP(:,1:end-1)-out.qHP(:,2:end));
+     % Low-pressure offshore
+    cap = @(p) capAccum(p,par.pc_lout,par.Vc_lout,par.f,par) + lineCap(p,1,par);
+    deltaV_lout = deltaV_NI(out.p_lout(1),out.p_lout(end),cap,dp);
 
+     % High-pressure offshore
+    cap = @(p) capAccum(p,par.pc_hin,par.Vc_hin,par.f,par) + lineCap(p,2,par);
+    deltaV_hin = deltaV_NI(out.p_hin(1),out.p_hin(end),cap,dp);
+
+     % High-pressure onshore
+    cap = @(p) capAccum(p,par.pc_hout,par.Vc_hout,par.f,par) + lineCap(p,2,par);
+    deltaV_hout = deltaV_NI(out.p_hout(1),out.p_hout(end),cap,dp);
+
+     % RO feed inlet
+    cap = @(p) capAccum(p,par.pc_RO,par.Vc_RO,par.f,par);
+    deltaV_RO = deltaV_NI(out.p_RO(1),out.p_RO(end),cap,dp);
+
+    % Change in stored fluid in pipelines
+     % Low-pressure
+    cap = @(p) lineCap(p,1,par);
+    deltaV_LP = 0;
+    for i = 1:par.n_seg(1)-1
+        deltaV_LP = deltaV_LP + deltaV_NI(out.pLP(1,i),out.pLP(end,i),cap,dp);
+    end
+     % High-pressure
+    cap = @(p) lineCap(p,2,par);
+    deltaV_HP = 0;
+    for i = 1:par.n_seg(1)-1
+        deltaV_HP = deltaV_HP + deltaV_NI(out.pHP(1,i),out.pHP(end,i),cap,dp);
+    end
+
+    % Total change in stored volume in the system
     out.deltaV_total = deltaV_LP + deltaV_HP + deltaV_lin + deltaV_lout ...
                      + deltaV_hin + deltaV_hout + deltaV_RO;
 
+    % Flow at boundaries
     qbnds = out.q_c ...
             - (out.q_perm + out.q_brine + out.q_linPRV + out.q_loutPRV);
 
+    % Total balance of flow: flow in minus change in volume stored
     out.Vbal = trapz(out.t,qbnds) - out.deltaV_total;
+    out.Vbal_error = out.Vbal/trapz(out.t,out.q_wp);
 
 %% %%%%%%%%%%%%   FUNCTIONS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 

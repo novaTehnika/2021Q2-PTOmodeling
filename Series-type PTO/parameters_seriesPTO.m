@@ -115,6 +115,8 @@ function par = parameters_seriesPTO(par,filenameCoeff,filenameRadSS)
                 * 0.0421401101; % [lb ft^2 --> kg m^2] rotor inertia
     
     % Accumulators
+    par.f = 1e-2; % fraction of dead volume of working fluid compared to 
+                  % charge volume
      % LPA at inlet to LP pipelinerge pressure
     par.Vc_lout = (3000)*1e-3; % [(L) -> m^3] gas volume at charge pressure
     par.pc_lout = 0.2e6; % [Pa] charge pressure
