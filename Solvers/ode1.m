@@ -1,4 +1,4 @@
-function yout = ode1(F,t0,dt,tfinal,y0)
+function [tout, yout] = ode1(F,t0,dt,downSampleRate,tfinal,y0)
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ode1.m function m-file
 % AUTHORS: 
@@ -16,6 +16,8 @@ function yout = ode1(F,t0,dt,tfinal,y0)
 % parameters_WECmodel_V02x00.m
 %
 % UPDATES:
+% 05/12/2023 - add down sampling with an error check for the downsamping
+% rate as being an integer value.
 %
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -33,15 +35,39 @@ function yout = ode1(F,t0,dt,tfinal,y0)
 %   along with this program. If not, see <https://www.gnu.org/licenses/>.
 %
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-   
-    t = t0:dt:tfinal;
-    nt = length(t);
-    yout = zeros(nt,length(y0));
+    if mod(downSampleRate,dt)
+        warning('The down-sampling rate must be an integer value.')
+    end
+    
+    % Generate time array and determine the number of solver time steps
+    tout = t0:dt*downSampleRate:tfinal;
+    nt = (tout(end)-t0)/dt+1;
+
+    % Initialize state vector array for output
+    yout = zeros(length(tout),length(y0));
+
+    % Specify intial conditions
+    t = t0;
+    y = y0;
     yout(1,:) = y0;
     
+    % Loop through time, starting from second time step
+    itds = 2;
     for it = 2:nt
-        dy = F(t(it),yout(it-1,:));
-        yout(it,:) = yout(it-1,:) + dy.*dt;
+        dydt = F(t,y);      % Calculate the state derivitive vector at 
+                            % previous time
+    dydt(1)
+        t = t + dt;         % Increment time from previous time
+        y = y + dydt.*dt;   % Perform first order numerical integration for
+                            % state at next time
+         y(5)
+        yout(itds,:) = y;   % Store the system state at the next time step 
+                            % for output
+
+
+        itds = itds + ~(mod(it-1,downSampleRate));    % increment the time step if
+                                            % the curent time step matches
+                                            % an output time step
     end
       
 end    

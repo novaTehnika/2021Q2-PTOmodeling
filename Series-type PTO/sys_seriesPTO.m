@@ -222,7 +222,7 @@ dydt(iyHPPL) = dydt_pLineHP;
                         + nonState.pmMotoring*nonState.eta_m_pm)...
                         *par.D_pm*delta_p_pm;
 
-        % Reverse osmosis module          
+        % Reverse osmosis module
         nonState.q_perm = par.Sro*par.Aperm*(y(iyp_RO) - par.p_perm - par.p_osm);
         nonState.q_feed = 1/par.Y*nonState.q_perm;
 

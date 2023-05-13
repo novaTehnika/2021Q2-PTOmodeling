@@ -33,6 +33,7 @@ function out = sim_seriesPTO(y0,par)
 % 06/29/2021 - First version creation.
 % 07/08/2022 - replaced state indice specification in file with seperate
 % script, stateIndex_seriesPTO.m.
+% 05/12/2023 - added specification for down sampling in the solver
 % 
 % Copyright (C) 2022  Jeremy W. Simmons II
 % 
@@ -81,27 +82,26 @@ stateIndex_seriesPTO % load state indices
 %%% Solve for states of the dynamic system
  % Set-up solver
     tspan = [par.tstart-par.Tramp par.tend];   % time interval
-        
+    
  % Solver options
-    options = odeset('RelTol',par.odeSolverRelTol,...
-                     'AbsTol',par.odeSolverAbsTol,...
-                     'MaxOrder',3);
-    options.MaxStep = par.MaxStep;
+%     options = odeset('RelTol',par.odeSolverRelTol,...
+%                      'AbsTol',par.odeSolverAbsTol,...
+%                      'MaxOrder',3);
+%     options.MaxStep = par.MaxStep;
+    dt = par.MaxStep;
+    downSampleRate = floor(par.downSampledStepSize/dt);
 
  % Run solver
-%     [t,y] = ode15s(@(t,y) sys(t,y,par), tspan, y0, options);
-    
-    dt = par.MaxStep;
-    y = ode1(@(t,y) sys(t,y,par)',tspan(1),dt,tspan(2),y0);
-    t = tspan(1) : dt : tspan(2);
+    [t, y] = ode1(@(t,y) sys(t,y,par)',tspan(1),dt,downSampleRate,tspan(2),y0);
+
 %% %%%%%%%%%%%%   POST-PROCESS   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Parameters
     out.par = par;
     
-    % determine number of time steps
+    % Select desired time indices
     itVec = find(t >= par.tstart);
     
-    % Extract system states from simulation results
+    % Extract system states from simulation results post ramp
     out.t = t(itVec);
     out.y = y(itVec,:);
     
