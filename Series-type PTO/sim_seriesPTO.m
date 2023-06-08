@@ -10,18 +10,8 @@ function out = sim_seriesPTO(y0,par)
 % 06/29/2021
 %
 % PURPOSE/DESCRIPTION:
-% This script simulates a wave energy PTO with a long pipeline in the
-% high-pressure branch and low-pressure branch. The flow through the
-% WEC-driven pump is the input to the system and is determined from a power
-% spectrum representing waves. The dynamics of the WEC are ignored and the
-% the power spectrum is used directly to calculate the flow rate of the
-% WEC-driven pump. A variety of pipeline models are implemented for
-% comparison. Accumulators are modeled as linear capacitive elements. The
-% low-pressure source node, at the inlet of the low-pressure pipeline, is
-% modeled as ... The load on the system is modeled as a linear resistance;
-% the resistance of the load is calculated from the mean flow of the
-% WEC-driven pump (a predetermined value) and a specified nominal mean
-% load pressure. (OR maybe just a specified load resistance)
+% This script executes the set-up, solution, and basic post-processing for
+% the seriesPTO model.
 %
 % FILE DEPENDENCY:
 % sys_seriesPTO.m
