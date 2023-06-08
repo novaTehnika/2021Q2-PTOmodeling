@@ -59,32 +59,34 @@ function out = sim_coulombPTO(y0,par)
 %     [t,y] = ode15s(@(t,y) sys(t,y,par), tspan, y0, options);
     
     dt = par.MaxStep;
-    y = ode1(@(t,y) sys(t,y,par)',tspan(1),dt,tspan(2),y0);
-    t = tspan(1) : dt : tspan(2);
-
+    [t, y] = ode1(@(t,y) sys(t,y,par)',tspan(1),dt,tspan(2),y0);
+    
 %% %%%%%%%%%%%%   POST-PROCESS   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Parameters
     out.par = par;
 
-    % determine number of time steps
-    nt = length(t); % number of time steps
-
-    % Extract system states from simulation results
-    out.t = t;
-    out.y = y;
+    % Select desired time indices
+    itVec = find(t >= par.tstart);
     
-    out.theta = y(:,1); % [rad] position of the WEC
-    out.theta_dot = y(:,2); % [rad/s] angular velocity of the WEC
+    % Extract system states from simulation results
+    out.t = t(itVec);
+    out.y = y(itVec,:);
+    
+    out.theta = y(itVec,1); % [rad] position of the WEC
+    out.theta_dot = y(itVec,2); % [rad/s] angular velocity of the WEC
     
     % Post-process non-state variables and state derivatives
     syspost = @(t,y,par) sysPost(t,y,par);
-    
-    parfor it = 1:nt 
-        [dydt(it,:), nonState(it)] = syspost(t(it),y(it,:),par); 
+
+    nt_ramp = itVec(1)-1;
+    parfor it = 1:length(itVec)
+
+        [dydt(it,:), nonState(it)] = ...
+                            syspost(t(it+nt_ramp),y(it+nt_ramp,:),par); 
         
         % Move WEC torque results up a level in nonState stucture so that
         % they can be used like arrays in assiging to the output structure
-        temp(it).T_hydroStatic = nonState(it).torqueWEC.hydroStatic
+        temp(it).T_hydroStatic = nonState(it).torqueWEC.hydroStatic;
         temp(it).T_wave = nonState(it).torqueWEC.wave;
         temp(it).T_rad = nonState(it).torqueWEC.radiation;  
                     
