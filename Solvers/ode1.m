@@ -1,4 +1,4 @@
-function [tout, yout] = ode1(F,t0,dt,downSampleRate,tfinal,y0)
+function [tout, yout] = ode1(F,t0,dt,tfinal,y0,downSampleRate)
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % ode1.m function m-file
 % AUTHORS: 
@@ -35,13 +35,19 @@ function [tout, yout] = ode1(F,t0,dt,downSampleRate,tfinal,y0)
 %   along with this program. If not, see <https://www.gnu.org/licenses/>.
 %
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    if mod(downSampleRate,dt)
-        warning('The down-sampling rate must be an integer value.')
+    
+    % parse optional options
+    if exist('downSampleRate','var')
+        if mod(downSampleRate,1)
+            warning('The down-sampling rate must be an integer value.')
+        end
+    else
+        downSampleRate = 1;
     end
     
     % Generate time array and determine the number of solver time steps
     tout = t0:dt*downSampleRate:tfinal;
-    nt = (tout(end)-t0)/dt+1;
+    nt = ceil((tout(end)-t0)/dt);
 
     % Initialize state vector array for output
     yout = zeros(length(tout),length(y0));
@@ -56,18 +62,20 @@ function [tout, yout] = ode1(F,t0,dt,downSampleRate,tfinal,y0)
     for it = 2:nt
         dydt = F(t,y);      % Calculate the state derivitive vector at 
                             % previous time
-    dydt(1)
+
         t = t + dt;         % Increment time from previous time
         y = y + dydt.*dt;   % Perform first order numerical integration for
                             % state at next time
-         y(5)
+
         yout(itds,:) = y;   % Store the system state at the next time step 
                             % for output
 
 
-        itds = itds + ~(mod(it-1,downSampleRate));    % increment the time step if
-                                            % the curent time step matches
-                                            % an output time step
+        itds = itds + ~(mod(it-1,downSampleRate));  % increment the current
+                                                    % output time step if
+                                                    % the curent solver
+                                                    % time step matches an
+                                                    % output time step
     end
       
 end    

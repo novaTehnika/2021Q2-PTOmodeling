@@ -92,7 +92,8 @@ stateIndex_seriesPTO % load state indices
     downSampleRate = floor(par.downSampledStepSize/dt);
 
  % Run solver
-    [t, y] = ode1(@(t,y) sys(t,y,par)',tspan(1),dt,downSampleRate,tspan(2),y0);
+    [t, y] = ode1(@(t,y) sys(t,y,par)', ...
+                                tspan(1),dt,tspan(2),y0,downSampleRate);
 
 %% %%%%%%%%%%%%   POST-PROCESS   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     % Parameters
