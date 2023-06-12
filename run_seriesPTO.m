@@ -49,10 +49,10 @@
 clear
 % clc
 addpath('WEC model') 
-addpath('WEC model\WECdata') 
+addpath(['WEC model' filesep 'WECdata']) 
 addpath('Series-type PTO')
 addpath('Components')
-addpath('Components/Pipeline')
+addpath(['Components' filesep 'Pipeline'])
 addpath('Sea States')
 addpath('Solvers')
 %% %%%%%%%%%%%%   SIMULATION PARAMETERS  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
