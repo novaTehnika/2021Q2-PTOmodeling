@@ -69,9 +69,13 @@ par.WEC.nw = 1000; % num. of frequency components for harmonic superposition
 par.wave.rngSeedPhase = 3; % seed for the random number generator
 
 %% %%%%%%%%%%%%   Study Variables  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Tp = [7.31 9.86 11.52 12.71 15.23 16.50];
-% Hs = [2.34 2.64 5.36 2.05 5.84 3.25];
-load('SSdata_HumboltBay_1D.mat')
+switch 1
+    case 1
+        Hs = [2.34 2.64 5.36 2.05 5.84 3.25];
+        Tp = [7.31 9.86 11.52 12.71 15.23 16.50];
+    case 2
+        load('SSdata_HumboltBay_1D.mat')
+end
 nSS = length(Tp);
 
 nVar1 = 121;
