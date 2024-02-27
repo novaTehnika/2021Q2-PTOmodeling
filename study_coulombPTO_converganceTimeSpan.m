@@ -77,9 +77,9 @@ y0 = [  0, ...
 %% %%%%%%%%%%%%   Study Variables  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 par.Tcoulomb = 4e6;
 
-nVar = 11;
+nVar = 31;
 % Tcoulomb = 1e6*linspace(1,10,nVar1);% [Nm] PTO reaction torque
-Tspan = logspace(log10(100),log10(4000),nVar);% [Nm] PTO reaction torque
+Tspan = linspace(100,10000,nVar);% [Nm] PTO reaction torque
 
 saveSimData = 0; % save simulation data (1) or just output variables (0)
 
@@ -97,7 +97,7 @@ parfor iVar = 1:nVar
     toc
     
     % Calculate metrics
-    t_vec = find(out.t>=par.tstart);
+    t_vec = find(out.t>=param.tstart);
     PP(iVar) = mean(-out.T_pto(t_vec).*out.theta_dot(t_vec));
     theta_dot_ave(iVar) = mean(abs(out.theta_dot(t_vec)));
 
@@ -107,19 +107,66 @@ parfor iVar = 1:nVar
 
 end
 %% %%%%%%%%%%%%   PLOTTING  %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+black = [0 0 0];
+maroon = [122 0 25]/256;
+gold = [255 204 51]/256;
+blue = [0 75 135]/256;
+orange = [226 100 55]/256;
+green = [63 150 87]/256;
+pink = [255 192 203]/256;
+blue1 = [0 150 255]/256;
+purple = [128 0 128]/256;
+green1 = [0 255 150]/256;
+color = [maroon; gold; blue; orange; green; pink; blue1; purple; green1];
 
-figure
-xlabel('Torque (MNm)')
-title('WEC Power Absorption, Coulomb Damping')
-yyaxis left
-hold on
-plot(Tspan,1e-3*PP)
-ylabel('Power (kW)')
-% ylim(10*[-pi/2 pi/2])
+linestyles = {'-', '--', '-.', ':','-', '--', '-.', ':',};
 
-yyaxis right
-hold on
-plot(Tspan,theta_dot_ave)
-ylabel('Speed, mean (rad/s)')
-% ylim()
-% xlim([0 2])
+supTitleFontSize = 9;
+subTitleFontSize = 9;
+axFontSize = 8;
+bottomEdge = 1;
+leftEdge = 3;
+width = 4;
+height = 3;
+lineWidth = 0.5;
+
+%% Residual error in power capture
+fig = figure;
+fig.Units = 'inches';
+fig.Position = [leftEdge bottomEdge width height ];
+
+semilogy(Tspan,abs((PP(end)-PP)./PP(end)),'k-','marker','x')
+
+grid on
+
+title('WEC Power Capture Convergence: Simulation Length', ...
+        'Interpreter','latex','FontSize',supTitleFontSize,'fontname','Times')
+xlabel('length (s)', ...
+        'Interpreter','latex','FontSize',supTitleFontSize,'fontname','Times')
+ylabel('error', ...
+        'Interpreter','latex','FontSize',supTitleFontSize,'fontname','Times')
+
+ax = gca;
+ax.FontName = 'times';
+ax.FontSize = axFontSize;
+
+%% Power Capture
+fig = figure;
+fig.Units = 'inches';
+fig.Position = [leftEdge bottomEdge width height ];
+
+plot(Tspan,1e-3*PP,'k-','marker','x')
+
+grid on
+
+title(['WEC Power Capture Convergence:',newline, ...
+        'Simulation Length'], ...
+        'Interpreter','latex','FontSize',supTitleFontSize,'fontname','Times')
+xlabel('length (s)', ...
+        'Interpreter','latex','FontSize',supTitleFontSize,'fontname','Times')
+ylabel('power (kW)', ...
+        'Interpreter','latex','FontSize',supTitleFontSize,'fontname','Times')
+
+ax = gca;
+ax.FontName = 'times';
+ax.FontSize = axFontSize;
